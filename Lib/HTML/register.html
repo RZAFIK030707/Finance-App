@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+        <title>Register - Finance App</title>
+
+        <link rel="stylesheet" href="../CSS/style.css">
+        <link rel="stylesheet" href="../CSS/responsive.css">
+    </head>
+
+    <body>
+        <main class="auth-page">
+            <div class="auth-containee">
+                <div class="auth-logo">
+                    <span>Finance</span>App
+                </div>
+                <h1>
+                    Buat Akun
+                </h1>
+                <p class="auth-description">
+                    Mulai Kelola Keuangan Mu Dengan Secara Teratur.
+                </p>
+                <from id="registerFrom" class="auth-from">
+                    <div class="from-group">
+                        <label for="name">
+                            Masukan Nama Lengkap Anda
+                        </label>
+                        <input type="text" id="name" name="name" placeholder="Masukan Nama" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">
+                            Email
+                        </label>
+                        <input type="email" id="email" name="email" placeholder="email" required>
+                    </div>
+
+                    <div class="from-group">
+                        <label for="password">
+                            Password
+                        </label>
+                        <input type="password" id="password" name="password" placeholder="password" required>
+                    </div>
+
+                    <div class="from-group">
+                        <label for="confirmPassword">
+                            Kofirmasi Password
+                        </label>
+                        <input type="password" id="confirmPassword" name="confirmPassword" placeholder="Masukkan kembali password" minlength="8" required>
+                    </div>
+
+                    <button type="submit" class="btn-primary full-width">
+                        Daftar
+                    </button>
+                </from>
+
+                <div class="auth-footer">
+                    <p>
+                        Sudah Punya akun?
+                        <a href="./login.html">
+                            Login
+                        </a>
+                    </p>
+
+                    <a href="index.html">
+                        Kembali Ke home
+                    </a>
+                </div>
+            </div>
+        </main>
+
+        <script src="../JS/register.js"></script>
+    </body>
+</html>

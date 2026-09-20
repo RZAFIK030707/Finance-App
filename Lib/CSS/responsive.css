@@ -1,0 +1,94 @@
+@media (max-width: 1000px) {
+    .hero {
+        grid-template-columns: 1fr;
+        gap: 40px;
+        margin-top: 50px;
+    }
+
+    .hero-content {
+        text-align: center;
+    }
+
+    .hero-description {
+        margin-left : auto;
+        margin-right: auto;
+    }
+
+    .hero-buttons {
+        justify-content: center;
+    }
+
+    .feature-grid {
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    }
+}
+
+@media (max-width: 600px) {
+    .navbar {
+        padding: 15px 5%;
+    }
+
+    .logo {
+        font-size: 22px;
+    }
+
+    .nav-menu {
+        gap: 10px;
+    }
+
+    .nav-menu a {
+        font-size: 13px;
+    }
+
+    .btn-nav {
+        padding: 8px 12px;
+    }
+
+    .hero {
+        width: 92%;
+        margin: 50px auto;
+    }
+
+    .hero h1 {
+        font-size: 15px;
+    }
+
+    .hero-description {
+        font-size: 15px;
+    }
+
+    .hero-buttons {
+        flex-direction: column;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+        width: 100%;
+        text-align: center;
+    }
+
+    .hero-card {
+        padding: 20px;
+    }
+
+    .preview-header h2 {
+        font-size: 24px;
+    }
+
+    .preview-stats {
+        grid-template-columns: 1fr;
+    } 
+
+    .features {
+        width: 92%;
+        margin: 70px auto;
+    }
+
+    .section-title h2 {
+        font-size: 30px;
+    }
+
+    .feature-grid {
+        grid-template-columns: 1fr;
+    }
+}
