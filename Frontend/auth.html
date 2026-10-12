@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Masuk ke FinanceApp - manajemen keuangan pribadi untuk mahasiswa">
+    <title>Masuk - FinanceApp</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body class="auth-body">
+    <div class="auth">
+        <aside class="auth__aside">
+            <div class="auth__brand">
+                <span class="brand-mark"><i class="fas fa-wallet"></i></span>
+                <span class="brand-text">Finance<span class="brand-text__accent">App</span></span>
+            </div>
+
+            <div class="auth__pitch">
+                <h1 class="auth__headline">Uang kuliah, tetap rapi.</h1>
+                <p class="auth__sub">Catat pemasukan, pantau pengeluaran, dan kejar targetmu tanpa ribet.</p>
+            </div>
+
+            <ul class="auth__points">
+                <li><i class="fas fa-chart-simple"></i><span>Ringkasan kondisi keuangan tiap bulan</span></li>
+                <li><i class="fas fa-bullseye"></i><span>Target tabungan dengan progres otomatis</span></li>
+                <li><i class="fas fa-tags"></i><span>Kategori sendiri agar laporan lebih bermakna</span></li>
+            </ul>
+        </aside>
+
+        <main class="auth__main">
+            <button class="icon-btn auth__theme" id="themeToggle" aria-label="Ganti tema">
+                <i class="fas fa-sun" id="themeIcon"></i>
+            </button>
+
+            <div class="auth__card">
+                <div class="auth__mobile-brand">
+                    <span class="brand-mark"><i class="fas fa-wallet"></i></span>
+                    <span class="brand-text">Finance<span class="brand-text__accent">App</span></span>
+                </div>
+
+                <div class="auth__head">
+                    <h2 class="auth__title" id="authTitle">Selamat datang kembali</h2>
+                    <p class="auth__hint" id="authHint">Masuk untuk melanjutkan.</p>
+                </div>
+
+                <div class="auth__tabs" role="tablist">
+                    <button class="auth__tab is-active" data-mode="login" role="tab">Masuk</button>
+                    <button class="auth__tab" data-mode="register" role="tab">Daftar</button>
+                </div>
+
+                <form class="auth__form" id="authForm" novalidate>
+                    <div class="field" id="nameField" hidden>
+                        <label class="field__label" for="authName">Nama</label>
+                        <div class="auth__input">
+                            <i class="fas fa-user"></i>
+                            <input type="text" class="input" id="authName" placeholder="Nama kamu" autocomplete="name">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label class="field__label" for="authEmail">Email</label>
+                        <div class="auth__input">
+                            <i class="fas fa-envelope"></i>
+                            <input type="email" class="input" id="authEmail" placeholder="nama@email.com" autocomplete="email">
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label class="field__label" for="authPassword">Kata sandi</label>
+                        <div class="auth__input">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" class="input" id="authPassword" placeholder="Minimal 6 karakter" autocomplete="current-password">
+                            <button type="button" class="auth__reveal" id="togglePassword" aria-label="Tampilkan kata sandi">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="field" id="confirmField" hidden>
+                        <label class="field__label" for="authConfirm">Ulangi kata sandi</label>
+                        <div class="auth__input">
+                            <i class="fas fa-lock"></i>
+                            <input type="password" class="input" id="authConfirm" placeholder="Ketik ulang kata sandi" autocomplete="new-password">
+                        </div>
+                    </div>
+
+                    <p class="auth__error" id="authError" hidden></p>
+
+                    <button type="submit" class="btn btn-primary auth__submit" id="authSubmit">
+                        <span id="authSubmitLabel">Masuk</span>
+                    </button>
+                </form>
+
+                <div class="auth__divider"><span>atau</span></div>
+
+                <button class="btn btn-secondary auth__submit" id="guestBtn">
+                    <i class="fas fa-user-clock"></i> Lanjut sebagai Tamu
+                </button>
+
+                <p class="auth__note">
+                    <i class="fas fa-shield-halved"></i>
+                    Data tersimpan di perangkat ini. Tidak ada yang dikirim ke server.
+                </p>
+            </div>
+        </main>
+    </div>
+
+    <div class="toast-stack" id="toastContainer" aria-live="polite"></div>
+
+    <script src="session.js"></script>
+    <script src="auth.js"></script>
+</body>
+</html>

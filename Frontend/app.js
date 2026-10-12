@@ -300,6 +300,44 @@ function initTheme() {
     applyTheme(preferred);
 }
 
+/* ---------- Session / user ----------------------------------------------- */
+
+function renderUser() {
+    const name = Auth.displayName();
+    const session = Auth.session() || {};
+    const meta = session.isGuest ? 'Mode tamu' : (session.email || 'Akun lokal');
+    const initials = Auth.initials(name);
+
+    document.getElementById('userName').textContent = name;
+    document.getElementById('userAvatar').textContent = initials;
+    document.getElementById('userMeta').textContent = meta;
+
+    const settingsAvatar = document.getElementById('settingsAvatar');
+    if (settingsAvatar) {
+        document.getElementById('settingsName').textContent = name;
+        settingsAvatar.textContent = initials;
+        document.getElementById('settingsMeta').textContent = meta;
+    }
+
+    const aboutUser = document.getElementById('aboutUser');
+    if (aboutUser) {
+        aboutUser.innerHTML = `
+            <div><dt>Masuk sebagai</dt><dd>${esc(name)}</dd></div>
+            <div><dt>Email</dt><dd>${esc(session.email || '-')}</dd></div>`;
+    }
+}
+
+function signOut() {
+    const isGuest = !(Auth.session() || {}).isGuest;
+    const message = isGuest
+        ? 'Keluar dari aplikasi?'
+        : 'Keluar dari akun ini? Data keuangan di perangkat ini tidak ikut terhapus.';
+    if (!confirmAction(message)) return;
+
+    Auth.signOut();
+    location.replace('auth.html');
+}
+
 /* ---------- Data layer --------------------------------------------------- */
 
 async function loadState() {
@@ -369,6 +407,7 @@ function updateConnectionBadge() {
 
     const aboutMode = document.getElementById('aboutMode');
     if (aboutMode) aboutMode.textContent = remote ? 'Server (port 3000)' : 'Lokal (localStorage)';
+    renderUser();
 }
 
 /* ---------- Navigation --------------------------------------------------- */
@@ -378,6 +417,7 @@ function navigateTo(page, options = {}) {
 
     document.querySelectorAll('.page').forEach(el => el.classList.toggle('is-active', el.id === `page-${page}`));
     document.querySelectorAll('.nav-link[data-page]').forEach(el => el.classList.toggle('is-active', el.dataset.page === page));
+    document.querySelectorAll('.bottom-nav__item[data-page]').forEach(el => el.classList.toggle('is-active', el.dataset.page === page));
 
     const meta = PAGE_META[page] || PAGE_META.dashboard;
     document.getElementById('pageTitle').textContent = meta.title;
@@ -1387,6 +1427,7 @@ function renderSettings() {
     document.getElementById('apiBaseInput').value = localStorage.getItem('financeApp_apiBase') || '';
     document.getElementById('aboutCount').textContent = formatNumber(state.transactions.length);
     updateConnectionBadge();
+    renderUser();
 }
 
 /* ---------- Transaction modal -------------------------------------------- */
@@ -2014,6 +2055,18 @@ function bindEvents() {
         });
     });
 
+    document.querySelectorAll('.bottom-nav__item[data-page]').forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.preventDefault();
+            navigateTo(item.dataset.page);
+        });
+    });
+
+    document.getElementById('bottomNavFab').addEventListener('click', () => openTransactionModal());
+
+    document.getElementById('userCard').addEventListener('click', signOut);
+    document.getElementById('signOutBtn').addEventListener('click', signOut);
+
     document.querySelectorAll('[data-goto]').forEach(el => {
         el.addEventListener('click', (e) => {
             e.preventDefault();
@@ -2235,10 +2288,20 @@ function bindDynamicEvents() {
     });
 }
 
+function initSearchPlaceholder() {
+    const search = document.getElementById('globalSearch');
+    const apply = () => {
+        search.placeholder = window.innerWidth < 768 ? 'Cari' : 'Cari transaksi, akun, kategori...';
+    };
+    apply();
+    window.addEventListener('resize', apply);
+}
+
 /* ---------- Boot --------------------------------------------------------- */
 
 async function init() {
     initTheme();
+    initSearchPlaceholder();
     bindEvents();
     navigateTo('dashboard', { scroll: false });
 
