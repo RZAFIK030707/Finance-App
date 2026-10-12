@@ -1,0 +1,468 @@
+{
+  "accounts": [
+    {
+      "id": "acc-1",
+      "name": "BCA",
+      "type": "bank",
+      "openingBalance": 5000000,
+      "balance": 6071000,
+      "currency": "IDR",
+      "color": "#2196F3",
+      "icon": "fa-university",
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "acc-2",
+      "name": "GoPay",
+      "type": "ewallet",
+      "openingBalance": 500000,
+      "balance": 875500,
+      "currency": "IDR",
+      "color": "#4CAF50",
+      "icon": "fa-mobile-alt",
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "acc-3",
+      "name": "Dompet Tunai",
+      "type": "cash",
+      "openingBalance": 300000,
+      "balance": 210000,
+      "currency": "IDR",
+      "color": "#FF9800",
+      "icon": "fa-money-bill-wave",
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    }
+  ],
+  "transactions": [
+    {
+      "id": "trx-1",
+      "type": "income",
+      "amount": 2500000,
+      "categoryId": "cat-1",
+      "accountId": "acc-1",
+      "toAccountId": null,
+      "date": "2026-10-10",
+      "note": "Beasiswa semester",
+      "isRecurring": false,
+      "recurringId": null,
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "trx-2",
+      "type": "income",
+      "amount": 750000,
+      "categoryId": "cat-2",
+      "accountId": "acc-1",
+      "toAccountId": null,
+      "date": "2026-10-07",
+      "note": "Proyek desain logo",
+      "isRecurring": false,
+      "recurringId": null,
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "trx-3",
+      "type": "expense",
+      "amount": 38500,
+      "categoryId": "cat-5",
+      "accountId": "acc-2",
+      "toAccountId": null,
+      "date": "2026-10-11",
+      "note": "Makan siang campus",
+      "isRecurring": false,
+      "recurringId": null,
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "trx-4",
+      "type": "expense",
+      "amount": 24000,
+      "categoryId": "cat-5",
+      "accountId": "acc-2",
+      "toAccountId": null,
+      "date": "2026-10-10",
+      "note": "Kopi & snack",
+      "isRecurring": false,
+      "recurringId": null,
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "trx-5",
+      "type": "expense",
+      "amount": 62000,
+      "categoryId": "cat-6",
+      "accountId": "acc-2",
+      "toAccountId": null,
+      "date": "2026-10-10",
+      "note": "Gojek ke kampus",
+      "isRecurring": false,
+      "recurringId": null,
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "trx-6",
+      "type": "expense",
+      "amount": 249000,
+      "categoryId": "cat-7",
+      "accountId": "acc-1",
+      "toAccountId": null,
+      "date": "2026-10-09",
+      "note": "Belanja bulanan",
+      "isRecurring": false,
+      "recurringId": null,
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "trx-7",
+      "type": "expense",
+      "amount": 385000,
+      "categoryId": "cat-11",
+      "accountId": "acc-1",
+      "toAccountId": null,
+      "date": "2026-10-08",
+      "note": "Buku kuliah",
+      "isRecurring": false,
+      "recurringId": null,
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "trx-8",
+      "type": "expense",
+      "amount": 145000,
+      "categoryId": "cat-8",
+      "accountId": "acc-1",
+      "toAccountId": null,
+      "date": "2026-10-06",
+      "note": "Tagihan listrik & internet",
+      "isRecurring": false,
+      "recurringId": null,
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "trx-9",
+      "type": "expense",
+      "amount": 90000,
+      "categoryId": "cat-9",
+      "accountId": "acc-3",
+      "toAccountId": null,
+      "date": "2026-10-05",
+      "note": "Nonton bioskop",
+      "isRecurring": false,
+      "recurringId": null,
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "trx-10",
+      "type": "expense",
+      "amount": 175000,
+      "categoryId": "cat-10",
+      "accountId": "acc-1",
+      "toAccountId": null,
+      "date": "2026-10-03",
+      "note": "Obat & cek-up",
+      "isRecurring": false,
+      "recurringId": null,
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "trx-11",
+      "type": "transfer",
+      "amount": 500000,
+      "categoryId": null,
+      "accountId": "acc-1",
+      "toAccountId": "acc-2",
+      "date": "2026-10-10",
+      "note": "Isi saldo GoPay",
+      "isRecurring": false,
+      "recurringId": null,
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "trx-12",
+      "type": "expense",
+      "amount": 300000,
+      "categoryId": "cat-12",
+      "accountId": "acc-1",
+      "toAccountId": null,
+      "date": "2026-10-04",
+      "note": "Setoran tabungan bulanan",
+      "isRecurring": false,
+      "recurringId": null,
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "trx-13",
+      "type": "income",
+      "amount": 1200000,
+      "categoryId": "cat-1",
+      "accountId": "acc-1",
+      "toAccountId": null,
+      "date": "2026-09-09",
+      "note": "Beasiswa bulan lalu",
+      "isRecurring": false,
+      "recurringId": null,
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "trx-14",
+      "type": "expense",
+      "amount": 1450000,
+      "categoryId": "cat-5",
+      "accountId": "acc-1",
+      "toAccountId": null,
+      "date": "2026-09-07",
+      "note": "Makan & coping bulan lalu",
+      "isRecurring": false,
+      "recurringId": null,
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "trx-15",
+      "type": "expense",
+      "amount": 320000,
+      "categoryId": "cat-11",
+      "accountId": "acc-1",
+      "toAccountId": null,
+      "date": "2026-09-08",
+      "note": "Modul & printer",
+      "isRecurring": false,
+      "recurringId": null,
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "trx-16",
+      "type": "income",
+      "amount": 2100000,
+      "categoryId": "cat-1",
+      "accountId": "acc-1",
+      "toAccountId": null,
+      "date": "2026-08-09",
+      "note": "Beasiswa 2 bulan lalu",
+      "isRecurring": false,
+      "recurringId": null,
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "trx-17",
+      "type": "expense",
+      "amount": 1680000,
+      "categoryId": "cat-5",
+      "accountId": "acc-1",
+      "toAccountId": null,
+      "date": "2026-08-07",
+      "note": "Makan 2 bulan lalu",
+      "isRecurring": false,
+      "recurringId": null,
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "trx-18",
+      "type": "expense",
+      "amount": 275000,
+      "categoryId": "cat-7",
+      "accountId": "acc-1",
+      "toAccountId": null,
+      "date": "2026-08-08",
+      "note": "Belanja 2 bulan lalu",
+      "isRecurring": false,
+      "recurringId": null,
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    }
+  ],
+  "categories": [
+    {
+      "id": "cat-1",
+      "name": "Gaji",
+      "type": "income",
+      "icon": "fa-briefcase",
+      "color": "#4CAF50",
+      "isDefault": true
+    },
+    {
+      "id": "cat-2",
+      "name": "Freelance",
+      "type": "income",
+      "icon": "fa-laptop-code",
+      "color": "#2196F3",
+      "isDefault": true
+    },
+    {
+      "id": "cat-3",
+      "name": "Hadiah",
+      "type": "income",
+      "icon": "fa-gift",
+      "color": "#9C27B0",
+      "isDefault": true
+    },
+    {
+      "id": "cat-4",
+      "name": "Investasi",
+      "type": "income",
+      "icon": "fa-chart-line",
+      "color": "#FF9800",
+      "isDefault": true
+    },
+    {
+      "id": "cat-5",
+      "name": "Makanan",
+      "type": "expense",
+      "icon": "fa-utensils",
+      "color": "#f44336",
+      "isDefault": true
+    },
+    {
+      "id": "cat-6",
+      "name": "Transportasi",
+      "type": "expense",
+      "icon": "fa-bus",
+      "color": "#E91E63",
+      "isDefault": true
+    },
+    {
+      "id": "cat-7",
+      "name": "Belanja",
+      "type": "expense",
+      "icon": "fa-shopping-bag",
+      "color": "#FF5722",
+      "isDefault": true
+    },
+    {
+      "id": "cat-8",
+      "name": "Tagihan",
+      "type": "expense",
+      "icon": "fa-file-invoice",
+      "color": "#795548",
+      "isDefault": true
+    },
+    {
+      "id": "cat-9",
+      "name": "Hiburan",
+      "type": "expense",
+      "icon": "fa-film",
+      "color": "#607D8B",
+      "isDefault": true
+    },
+    {
+      "id": "cat-10",
+      "name": "Kesehatan",
+      "type": "expense",
+      "icon": "fa-heartbeat",
+      "color": "#F44336",
+      "isDefault": true
+    },
+    {
+      "id": "cat-11",
+      "name": "Pendidikan",
+      "type": "expense",
+      "icon": "fa-graduation-cap",
+      "color": "#3F51B5",
+      "isDefault": true
+    },
+    {
+      "id": "cat-12",
+      "name": "Tabungan",
+      "type": "expense",
+      "icon": "fa-piggy-bank",
+      "color": "#009688",
+      "isDefault": true
+    },
+    {
+      "id": "cat-13",
+      "name": "Lainnya",
+      "type": "expense",
+      "icon": "fa-ellipsis-h",
+      "color": "#9E9E9E",
+      "isDefault": true
+    },
+    {
+      "id": "cat-14",
+      "name": "Lainnya",
+      "type": "income",
+      "icon": "fa-ellipsis-h",
+      "color": "#9E9E9E",
+      "isDefault": true
+    }
+  ],
+  "budgets": [
+    {
+      "id": "bud-1",
+      "categoryId": "cat-5",
+      "amount": 1500000,
+      "period": "monthly",
+      "month": "2026-10",
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "bud-2",
+      "categoryId": "cat-6",
+      "amount": 500000,
+      "period": "monthly",
+      "month": "2026-10",
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "bud-3",
+      "categoryId": "cat-7",
+      "amount": 1000000,
+      "period": "monthly",
+      "month": "2026-10",
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "bud-4",
+      "categoryId": "cat-9",
+      "amount": 300000,
+      "period": "monthly",
+      "month": "2026-10",
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "bud-5",
+      "categoryId": "cat-11",
+      "amount": 800000,
+      "period": "monthly",
+      "month": "2026-10",
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    }
+  ],
+  "goals": [
+    {
+      "id": "goal-1",
+      "name": "Laptop Baru",
+      "targetAmount": 15000000,
+      "currentAmount": 5000000,
+      "deadline": "2027-03-30",
+      "color": "#2196F3",
+      "icon": "fa-laptop",
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "goal-2",
+      "name": "Dana Darurat",
+      "targetAmount": 10000000,
+      "currentAmount": 3200000,
+      "deadline": "2027-09-29",
+      "color": "#4CAF50",
+      "icon": "fa-shield-alt",
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    },
+    {
+      "id": "goal-3",
+      "name": "Studi ke Luar Negeri",
+      "targetAmount": 40000000,
+      "currentAmount": 6000000,
+      "deadline": "2028-11-29",
+      "color": "#9C27B0",
+      "icon": "fa-plane",
+      "createdAt": "2026-10-12T04:12:40.180Z"
+    }
+  ],
+  "settings": {
+    "currency": "IDR",
+    "dateFormat": "DD/MM/YYYY",
+    "language": "id",
+    "firstDayOfWeek": 1,
+    "compactNumbers": false
+  }
+}

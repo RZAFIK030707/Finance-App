@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="light">
+<head>
+<style id="noanim">.page.is-active{animation:none !important}</style>
+<script>
+(function () {
+    localStorage.setItem('financeApp_theme', 'light');
+    const p = new URLSearchParams(location.search).get('p');
+    if (new URLSearchParams(location.search).get('noanim')) {
+        document.addEventListener('DOMContentLoaded', () => document.getElementById('noanim').remove());
+    }
+    if (p) {
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => navigateTo(p), 400);
+        });
+    }
+    window.__errors = [];
+    window.addEventListener('error', e => window.__errors.push(e.message));
+})();
+</script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="FinanceApp - Manajemen keuangan pribadi untuk mahasiswa">
+    <title>FinanceApp - Manajemen Keuangan Pribadi</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js" defer></script>
+</head>
+<body>
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <div class="layout">
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar__brand">
+                <span class="brand-mark"><i class="fas fa-wallet"></i></span>
+                <span class="brand-text">Finance<span class="brand-text__accent">App</span></span>
+                <button class="icon-btn sidebar__close" id="sidebarClose" aria-label="Tutup menu">
+                    <i class="fas fa-xmark"></i>
+                </button>
+            </div>
+
+            <nav class="sidebar__nav" aria-label="Navigasi utama">
+                <span class="nav-section">Utama</span>
+                <a href="#" class="nav-link is-active" data-page="dashboard">
+                    <i class="fas fa-table-columns"></i><span>Dashboard</span>
+                </a>
+                <a href="#" class="nav-link" data-page="transactions">
+                    <i class="fas fa-arrow-right-arrow-left"></i><span>Transaksi</span>
+                </a>
+                <a href="#" class="nav-link" data-page="calendar">
+                    <i class="fas fa-calendar-days"></i><span>Kalender</span>
+                </a>
+
+                <span class="nav-section">Perencanaan</span>
+                <a href="#" class="nav-link" data-page="budgets">
+                    <i class="fas fa-chart-simple"></i><span>Anggaran</span>
+                </a>
+                <a href="#" class="nav-link" data-page="goals">
+                    <i class="fas fa-bullseye"></i><span>Target</span>
+                </a>
+
+                <span class="nav-section">Data</span>
+                <a href="#" class="nav-link" data-page="accounts">
+                    <i class="fas fa-building-columns"></i><span>Akun</span>
+                </a>
+                <a href="#" class="nav-link" data-page="categories">
+                    <i class="fas fa-tags"></i><span>Kategori</span>
+                </a>
+                <a href="#" class="nav-link" data-page="reports">
+                    <i class="fas fa-chart-line"></i><span>Laporan</span>
+                </a>
+            </nav>
+
+            <div class="sidebar__footer">
+                <div class="connection" id="connectionBadge" title="Status koneksi data">
+                    <span class="connection__dot"></span>
+                    <span class="connection__label">Menghubungkan...</span>
+                </div>
+                <a href="#" class="nav-link" data-page="settings">
+                    <i class="fas fa-gear"></i><span>Pengaturan</span>
+                </a>
+            </div>
+        </aside>
+
+        <main class="main">
+            <header class="topbar">
+                <button class="icon-btn topbar__menu" id="menuBtn" aria-label="Buka menu">
+                    <i class="fas fa-bars"></i>
+                </button>
+
+                <div class="topbar__heading">
+                    <h1 class="topbar__title" id="pageTitle">Dashboard</h1>
+                    <p class="topbar__subtitle" id="pageSubtitle">Ringkasan keuangan Anda</p>
+                </div>
+
+                <div class="topbar__actions">
+                    <div class="search" id="searchWrap">
+                        <i class="fas fa-magnifying-glass search__icon"></i>
+                        <input type="search" class="search__input" id="globalSearch" placeholder="Cari transaksi, akun, kategori..." autocomplete="off">
+                        <kbd class="search__kbd">/</kbd>
+                        <div class="search-results" id="searchResults" hidden></div>
+                    </div>
+
+                    <button class="icon-btn" id="themeToggle" aria-label="Ganti tema" title="Ganti tema">
+                        <i class="fas fa-sun" id="themeIcon"></i>
+                    </button>
+
+                    <button class="btn btn-primary" id="addTransactionBtn">
+                        <i class="fas fa-plus"></i><span class="btn__label">Transaksi</span>
+                    </button>
+                </div>
+            </header>
+
+            <div class="content" id="content">
+                <!-- Dashboard -->
+                <section class="page is-active" id="page-dashboard">
+                    <div class="balance-hero">
+                        <div class="balance-hero__main">
+                            <span class="balance-hero__label">Total Saldo</span>
+                            <strong class="balance-hero__value" id="totalBalance">Rp 0</strong>
+                            <span class="badge" id="balanceTrend">—</span>
+                        </div>
+                        <div class="balance-hero__meta">
+                            <div class="hero-meta">
+                                <span class="hero-meta__label">Pemasukan bulan ini</span>
+                                <span class="hero-meta__value is-income" id="monthlyIncome">Rp 0</span>
+                            </div>
+                            <div class="hero-meta">
+                                <span class="hero-meta__label">Pengeluaran bulan ini</span>
+                                <span class="hero-meta__value is-expense" id="monthlyExpense">Rp 0</span>
+                            </div>
+                            <div class="hero-meta">
+                                <span class="hero-meta__label">Sisa bulan ini</span>
+                                <span class="hero-meta__value" id="monthlySavings">Rp 0</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="stat-row" id="statRow"></div>
+
+                    <div class="grid-2-1">
+                        <section class="panel">
+                            <header class="panel__head">
+                                <div>
+                                    <h2 class="panel__title">Arus Kas</h2>
+                                    <p class="panel__hint">Perbandingan 6 bulan terakhir</p>
+                                </div>
+                                <div class="segmented" id="trendRange" role="tablist">
+                                    <button class="segmented__item is-active" data-months="6">6B</button>
+                                    <button class="segmented__item" data-months="12">12B</button>
+                                </div>
+                            </header>
+                            <div class="panel__body chart-box">
+                                <canvas id="trendChart"></canvas>
+                            </div>
+                        </section>
+
+                        <section class="panel">
+                            <header class="panel__head">
+                                <div>
+                                    <h2 class="panel__title">Pengeluaran</h2>
+                                    <p class="panel__hint">Per kategori bulan ini</p>
+                                </div>
+                            </header>
+                            <div class="panel__body chart-box chart-box--sm">
+                                <canvas id="categoryChart"></canvas>
+                            </div>
+                        </section>
+                    </div>
+
+                    <div class="grid-2-1">
+                        <section class="panel">
+                            <header class="panel__head">
+                                <div>
+                                    <h2 class="panel__title">Transaksi Terbaru</h2>
+                                    <p class="panel__hint">5 aktivitas terakhir</p>
+                                </div>
+                                <button class="link-btn" data-goto="transactions">Lihat semua <i class="fas fa-arrow-right"></i></button>
+                            </header>
+                            <div class="panel__body panel__body--flush">
+                                <ul class="tx-list" id="recentTransactions"></ul>
+                            </div>
+                        </section>
+
+                        <section class="panel">
+                            <header class="panel__head">
+                                <div>
+                                    <h2 class="panel__title">Anggaran Bulan Ini</h2>
+                                    <p class="panel__hint">Pantau batas belanjamu</p>
+                                </div>
+                                <button class="link-btn" data-goto="budgets">Kelola <i class="fas fa-arrow-right"></i></button>
+                            </header>
+                            <div class="panel__body">
+                                <div class="budget-mini-list" id="budgetMiniList"></div>
+                            </div>
+                        </section>
+                    </div>
+                </section>
+
+                <!-- Transactions -->
+                <section class="page" id="page-transactions">
+                    <div class="filter-bar">
+                        <div class="search search--inline">
+                            <i class="fas fa-magnifying-glass search__icon"></i>
+                            <input type="search" class="search__input" id="txSearch" placeholder="Cari keterangan...">
+                        </div>
+                        <div class="filter-bar__group">
+                            <select class="select" id="filterType">
+                                <option value="">Semua tipe</option>
+                                <option value="income">Pemasukan</option>
+                                <option value="expense">Pengeluaran</option>
+                                <option value="transfer">Transfer</option>
+                            </select>
+                            <select class="select" id="filterAccount">
+                                <option value="">Semua akun</option>
+                            </select>
+                            <select class="select" id="filterCategory">
+                                <option value="">Semua kategori</option>
+                            </select>
+                            <input type="date" class="select" id="filterDateFrom" aria-label="Dari tanggal">
+                            <input type="date" class="select" id="filterDateTo" aria-label="Sampai tanggal">
+                            <button class="btn btn-ghost" id="resetFilter">
+                                <i class="fas fa-rotate-left"></i><span class="btn__label">Reset</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <section class="panel">
+                        <header class="panel__head">
+                            <div>
+                                <h2 class="panel__title">Daftar Transaksi</h2>
+                                <p class="panel__hint" id="txCount">0 transaksi</p>
+                            </div>
+                        </header>
+                        <div class="panel__body panel__body--flush">
+                            <div class="table-wrap">
+                                <table class="table" id="transactionsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>Tanggal</th>
+                                            <th>Keterangan</th>
+                                            <th>Kategori</th>
+                                            <th>Akun</th>
+                                            <th class="is-right">Jumlah</th>
+                                            <th class="is-right">Aksi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="transactionsTableBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+                </section>
+
+                <!-- Calendar -->
+                <section class="page" id="page-calendar">
+                    <div class="page-header">
+                        <div>
+                            <h2 class="page-header__title">Kalender Keuangan</h2>
+                            <p class="page-header__hint">Ringkasan harian pengeluaran bulan terpilih</p>
+                        </div>
+                        <div class="month-nav">
+                            <button class="icon-btn" id="calPrev" aria-label="Bulan sebelumnya"><i class="fas fa-chevron-left"></i></button>
+                            <span class="month-nav__label" id="calLabel">—</span>
+                            <button class="icon-btn" id="calNext" aria-label="Bulan berikutnya"><i class="fas fa-chevron-right"></i></button>
+                        </div>
+                    </div>
+                    <div class="grid-cal">
+                        <section class="panel">
+                            <header class="panel__head">
+                                <div>
+                                    <h2 class="panel__title" id="calTitle">Bulan</h2>
+                                    <p class="panel__hint">Klik tanggal untuk melihat rincian</p>
+                                </div>
+                            </header>
+                            <div class="panel__body">
+                                <div class="calendar" id="calendarGrid"></div>
+                            </div>
+                        </section>
+                        <section class="panel">
+                            <header class="panel__head">
+                                <div>
+                                    <h2 class="panel__title" id="calDayTitle">Rincian Hari</h2>
+                                    <p class="panel__hint" id="calDaySummary">—</p>
+                                </div>
+                            </header>
+                            <div class="panel__body panel__body--flush">
+                                <ul class="tx-list" id="calDayList"></ul>
+                            </div>
+                        </section>
+                    </div>
+                </section>
+
+                <!-- Budgets -->
+                <section class="page" id="page-budgets">
+                    <div class="page-header">
+                        <div>
+                            <h2 class="page-header__title">Anggaran Bulanan</h2>
+                            <p class="page-header__hint">Batas belanja per kategori setiap bulan</p>
+                        </div>
+                        <button class="btn btn-primary" id="addBudgetBtn">
+                            <i class="fas fa-plus"></i><span class="btn__label">Tambah Anggaran</span>
+                        </button>
+                    </div>
+                    <div class="budget-list" id="budgetsList"></div>
+                </section>
+
+                <!-- Goals -->
+                <section class="page" id="page-goals">
+                    <div class="page-header">
+                        <div>
+                            <h2 class="page-header__title">Target Keuangan</h2>
+                            <p class="page-header__hint">Tetapkan tujuan dan pantau progresnya</p>
+                        </div>
+                        <button class="btn btn-primary" id="addGoalBtn">
+                            <i class="fas fa-plus"></i><span class="btn__label">Tambah Target</span>
+                        </button>
+                    </div>
+                    <div class="goal-grid" id="goalsGrid"></div>
+                </section>
+
+                <!-- Accounts -->
+                <section class="page" id="page-accounts">
+                    <div class="page-header">
+                        <div>
+                            <h2 class="page-header__title">Akun</h2>
+                            <p class="page-header__hint">Kelola bank, tunai, dan e-wallet</p>
+                        </div>
+                        <button class="btn btn-primary" id="addAccountBtn">
+                            <i class="fas fa-plus"></i><span class="btn__label">Tambah Akun</span>
+                        </button>
+                    </div>
+                    <div class="account-grid" id="accountsGrid"></div>
+                </section>
+
+                <!-- Categories -->
+                <section class="page" id="page-categories">
+                    <div class="page-header">
+                        <div>
+                            <h2 class="page-header__title">Kategori</h2>
+                            <p class="page-header__hint">Atur label pemasukan dan pengeluaranmu</p>
+                        </div>
+                        <button class="btn btn-primary" id="addCategoryBtn">
+                            <i class="fas fa-plus"></i><span class="btn__label">Tambah Kategori</span>
+                        </button>
+                    </div>
+                    <div class="grid-2-1">
+                        <section class="panel">
+                            <header class="panel__head">
+                                <div>
+                                    <h2 class="panel__title">Kategori Pengeluaran</h2>
+                                    <p class="panel__hint" id="expenseCatCount">0 kategori</p>
+                                </div>
+                            </header>
+                            <div class="panel__body">
+                                <div class="chip-list" id="expenseCategories"></div>
+                            </div>
+                        </section>
+                        <section class="panel">
+                            <header class="panel__head">
+                                <div>
+                                    <h2 class="panel__title">Kategori Pemasukan</h2>
+                                    <p class="panel__hint" id="incomeCatCount">0 kategori</p>
+                                </div>
+                            </header>
+                            <div class="panel__body">
+                                <div class="chip-list" id="incomeCategories"></div>
+                            </div>
+                        </section>
+                    </div>
+                </section>
+
+                <!-- Reports -->
+                <section class="page" id="page-reports">
+                    <div class="filter-bar">
+                        <div class="filter-bar__group">
+                            <select class="select" id="reportPeriod">
+                                <option value="6">6 Bulan</option>
+                                <option value="12">12 Bulan</option>
+                                <option value="year">Tahun Ini</option>
+                            </select>
+                            <select class="select" id="reportType">
+                                <option value="cashflow">Arus Kas</option>
+                                <option value="category">Kategori</option>
+                                <option value="account">Per Akun</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="stat-row stat-row--compact" id="reportStats"></div>
+
+                    <section class="panel">
+                        <header class="panel__head">
+                            <div>
+                                <h2 class="panel__title">Visualisasi</h2>
+                                <p class="panel__hint" id="reportChartHint">Ringkasan periode terpilih</p>
+                            </div>
+                        </header>
+                        <div class="panel__body chart-box chart-box--lg">
+                            <canvas id="reportChart"></canvas>
+                        </div>
+                    </section>
+
+                    <section class="panel">
+                        <header class="panel__head">
+                            <div>
+                                <h2 class="panel__title">Rincian Per Kategori</h2>
+                                <p class="panel__hint">Total pengeluaran pada periode terpilih</p>
+                            </div>
+                        </header>
+                        <div class="panel__body panel__body--flush">
+                            <div class="table-wrap">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Kategori</th>
+                                            <th class="is-right">Transaksi</th>
+                                            <th class="is-right">Total</th>
+                                            <th class="is-right">Porsi</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="reportCategoryBody"></tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </section>
+                </section>
+
+                <!-- Settings -->
+                <section class="page" id="page-settings">
+                    <div class="settings-grid">
+                        <section class="panel">
+                            <header class="panel__head">
+                                <div><h2 class="panel__title">Preferensi</h2><p class="panel__hint">Sesuaikan tampilan aplikasi</p></div>
+                            </header>
+                            <div class="panel__body stack">
+                                <div class="field">
+                                    <label class="field__label" for="currencySelect">Mata Uang</label>
+                                    <select class="select" id="currencySelect">
+                                        <option value="IDR">Rupiah (IDR)</option>
+                                        <option value="USD">US Dollar (USD)</option>
+                                        <option value="EUR">Euro (EUR)</option>
+                                        <option value="SGD">Singapore Dollar (SGD)</option>
+                                        <option value="MYR">Ringgit Malaysia (MYR)</option>
+                                    </select>
+                                </div>
+                                <div class="field">
+                                    <label class="field__label" for="dateFormatSelect">Format Tanggal</label>
+                                    <select class="select" id="dateFormatSelect">
+                                        <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                                        <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                                        <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                                    </select>
+                                </div>
+                                <div class="field">
+                                    <label class="field__label" for="languageSelect">Bahasa</label>
+                                    <select class="select" id="languageSelect">
+                                        <option value="id">Indonesia</option>
+                                        <option value="en">English</option>
+                                    </select>
+                                </div>
+                                <label class="switch">
+                                    <input type="checkbox" id="compactNumbers">
+                                    <span class="switch__track"></span>
+                                    <span class="switch__text">Angka ringkas (1.2jt)</span>
+                                </label>
+                            </div>
+                        </section>
+
+                        <section class="panel">
+                            <header class="panel__head">
+                                <div><h2 class="panel__title">Data</h2><p class="panel__hint">Backup, restore, dan sinkronisasi</p></div>
+                            </header>
+                            <div class="panel__body stack">
+                                <div class="field">
+                                    <span class="field__label">Server</span>
+                                    <div class="input-group">
+                                        <input class="input" id="apiBaseInput" placeholder="http://localhost:3000">
+                                        <button class="btn btn-secondary" id="apiBaseSave">Simpan</button>
+                                    </div>
+                                    <p class="field__hint">Kosongkan untuk memakai data lokal di browser.</p>
+                                </div>
+                                <div class="row-actions">
+                                    <button class="btn btn-secondary" id="exportBtn"><i class="fas fa-download"></i> Export JSON</button>
+                                    <button class="btn btn-secondary" id="importBtn"><i class="fas fa-upload"></i> Import JSON</button>
+                                    <input type="file" id="importFile" accept="application/json" hidden>
+                                </div>
+                                <div class="row-actions">
+                                    <button class="btn btn-secondary" id="exportCsvBtn"><i class="fas fa-file-csv"></i> Export CSV</button>
+                                    <button class="btn btn-danger" id="clearDataBtn"><i class="fas fa-trash"></i> Reset ke Data Demo</button>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section class="panel">
+                            <header class="panel__head">
+                                <div><h2 class="panel__title">Tentang</h2><p class="panel__hint">FinanceApp</p></div>
+                            </header>
+                            <div class="panel__body stack">
+                                <p class="about-text">Aplikasi manajemen keuangan pribadi untuk mahasiswa. Catat pemasukan, pantau pengeluaran, dan raggiarkan targetmu.</p>
+                                <dl class="about-list">
+                                    <div><dt>Versi</dt><dd id="aboutVersion">2.0.0</dd></div>
+                                    <div><dt>Mode data</dt><dd id="aboutMode">Memeriksa...</dd></div>
+                                    <div><dt>Total transaksi</dt><dd id="aboutCount">0</dd></div>
+                                </dl>
+                            </div>
+                        </section>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <button class="fab" id="fabBtn" aria-label="Tambah transaksi">
+        <i class="fas fa-plus"></i>
+    </button>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" id="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+            <header class="modal__head">
+                <h2 class="modal__title" id="modalTitle">Modal</h2>
+                <button class="icon-btn" id="modalClose" aria-label="Tutup"><i class="fas fa-xmark"></i></button>
+            </header>
+            <div class="modal__body" id="modalBody"></div>
+            <footer class="modal__foot" id="modalFooter"></footer>
+        </div>
+    </div>
+
+    <div class="toast-stack" id="toastContainer" aria-live="polite"></div>
+
+    <script src="api.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,282 +1,562 @@
-const STORAGE_KEYS = {
-    accounts: 'financeApp_accounts',
-    transactions: 'financeApp_transactions',
-    categories: 'financeApp_categories',
-    budgets: 'financeApp_budgets',
-    goals: 'financeApp_goals',
-    settings: 'financeApp_settings',
-    theme: 'financeApp_theme'
+/* FinanceApp - application logic */
+
+const PREFIX = { accounts: 'acc', transactions: 'trx', categories: 'cat', budgets: 'bud', goals: 'goal' };
+const THEME_KEY = 'financeApp_theme';
+
+const CURRENCY_SYMBOLS = { IDR: 'Rp', USD: '$', EUR: '€', SGD: 'S$', MYR: 'RM' };
+const CURRENCY_LOCALE = { IDR: 'id-ID', USD: 'en-US', EUR: 'de-DE', SGD: 'en-SG', MYR: 'ms-MY' };
+
+const PAGE_META = {
+    dashboard: { title: 'Dashboard', subtitle: 'Ringkasan keuangan Anda' },
+    transactions: { title: 'Transaksi', subtitle: 'Semua catatan pemasukan dan pengeluaran' },
+    calendar: { title: 'Kalender', subtitle: 'Pola belanja harian Anda' },
+    budgets: { title: 'Anggaran', subtitle: 'Batas belanja per kategori' },
+    goals: { title: 'Target', subtitle: 'Tujuan keuangan yang sedang dikejar' },
+    accounts: { title: 'Akun', subtitle: 'Bank, tunai, dan e-wallet' },
+    categories: { title: 'Kategori', subtitle: 'Label transaksi Anda' },
+    reports: { title: 'Laporan', subtitle: 'Analisis mendalam keuangan' },
+    settings: { title: 'Pengaturan', subtitle: 'Preferensi dan>data aplikasi' }
 };
 
-const DEFAULT_CATEGORIES = [
-    { id: 'cat-1', name: 'Gaji', type: 'income', icon: 'fa-briefcase', color: '#4CAF50', isDefault: true },
-    { id: 'cat-2', name: 'Freelance', type: 'income', icon: 'fa-laptop-code', color: '#2196F3', isDefault: true },
-    { id: 'cat-3', name: 'Hadiah', type: 'income', icon: 'fa-gift', color: '#9C27B0', isDefault: true },
-    { id: 'cat-4', name: 'Investasi', type: 'income', icon: 'fa-chart-line', color: '#FF9800', isDefault: true },
-    { id: 'cat-5', name: 'Makanan', type: 'expense', icon: 'fa-utensils', color: '#f44336', isDefault: true },
-    { id: 'cat-6', name: 'Transportasi', type: 'expense', icon: 'fa-bus', color: '#E91E63', isDefault: true },
-    { id: 'cat-7', name: 'Belanja', type: 'expense', icon: 'fa-shopping-bag', color: '#FF5722', isDefault: true },
-    { id: 'cat-8', name: 'Tagihan', type: 'expense', icon: 'fa-file-invoice', color: '#795548', isDefault: true },
-    { id: 'cat-9', name: 'Hiburan', type: 'expense', icon: 'fa-film', color: '#607D8B', isDefault: true },
-    { id: 'cat-10', name: 'Kesehatan', type: 'expense', icon: 'fa-heartbeat', color: '#F44336', isDefault: true },
-    { id: 'cat-11', name: 'Pendidikan', type: 'expense', icon: 'fa-graduation-cap', color: '#3F51B5', isDefault: true },
-    { id: 'cat-12', name: 'Tabungan', type: 'expense', icon: 'fa-piggy-bank', color: '#009688', isDefault: true },
-    { id: 'cat-13', name: 'Lainnya', type: 'expense', icon: 'fa-ellipsis-h', color: '#9E9E9E', isDefault: true },
-    { id: 'cat-14', name: 'Lainnya', type: 'income', icon: 'fa-ellipsis-h', color: '#9E9E9E', isDefault: true }
+const ACCOUNT_TYPES = [
+    { value: 'bank', label: 'Bank' },
+    { value: 'cash', label: 'Tunai' },
+    { value: 'ewallet', label: 'E-Wallet' },
+    { value: 'credit', label: 'Kartu Kredit' }
 ];
 
-const DEFAULT_SETTINGS = {
-    currency: 'IDR',
-    dateFormat: 'DD/MM/YYYY',
-    language: 'id'
-};
+const ACCOUNT_ICONS = [
+    'fa-university', 'fa-money-bill-wave', 'fa-mobile-alt', 'fa-credit-card',
+    'fa-wallet', 'fa-piggy-bank', 'fa-building-columns', 'fa-coins'
+];
 
-const CURRENCY_SYMBOLS = {
-    IDR: 'Rp',
-    USD: '$',
-    EUR: '€',
-    SGD: 'S$',
-    MYR: 'RM'
-};
+const CATEGORY_ICONS = [
+    'fa-utensils', 'fa-bus', 'fa-shopping-bag', 'fa-file-invoice', 'fa-film',
+    'fa-heartbeat', 'fa-graduation-cap', 'fa-piggy-bank', 'fa-briefcase',
+    'fa-laptop-code', 'fa-gift', 'fa-chart-line', 'fa-house', 'fa-phone',
+    'fa-plane', 'fa-dumbbell', 'fa-book', 'fa-coffee', 'fa-car', 'fa-gamepad',
+    'fa-shirt', 'fa-baby', 'fa-gift', 'fa-ellipsis-h'
+];
 
-let state = {
+const PALETTE = [
+    '#0ea5e9', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316', '#eab308',
+    '#22c55e', '#14b8a6', '#6366f1', '#a855f7', '#ef4444', '#10b981'
+];
+
+const MONTH_NAMES = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+const DAY_NAMES = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+
+const state = {
     accounts: [],
     transactions: [],
     categories: [],
     budgets: [],
     goals: [],
-    settings: { ...DEFAULT_SETTINGS },
+    settings: { ...Api.DEFAULT_SETTINGS },
     currentPage: 'dashboard',
-    charts: {}
+    ready: false,
+    charts: {},
+    ui: {
+        trendMonths: 6,
+        calendarMonth: new Date(),
+        calendarDate: new Date().getDate(),
+        searchOpen: false
+    }
 };
 
-function generateId() {
-    return 'id-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+/* ---------- Helpers ------------------------------------------------------ */
+
+function esc(value) {
+    if (value === undefined || value === null) return '';
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
-function loadState() {
-    try {
-        const savedAccounts = localStorage.getItem(STORAGE_KEYS.accounts);
-        const savedTransactions = localStorage.getItem(STORAGE_KEYS.transactions);
-        const savedCategories = localStorage.getItem(STORAGE_KEYS.categories);
-        const savedBudgets = localStorage.getItem(STORAGE_KEYS.budgets);
-        const savedGoals = localStorage.getItem(STORAGE_KEYS.goals);
-        const savedSettings = localStorage.getItem(STORAGE_KEYS.settings);
-
-        state.accounts = savedAccounts ? JSON.parse(savedAccounts) : [];
-        state.transactions = savedTransactions ? JSON.parse(savedTransactions) : [];
-        state.categories = savedCategories ? JSON.parse(savedCategories) : [...DEFAULT_CATEGORIES];
-        state.budgets = savedBudgets ? JSON.parse(savedBudgets) : [];
-        state.goals = savedGoals ? JSON.parse(savedGoals) : [];
-        state.settings = savedSettings ? { ...DEFAULT_SETTINGS, ...JSON.parse(savedSettings) } : { ...DEFAULT_SETTINGS };
-
-        if (!savedAccounts && !savedTransactions) {
-            seedDemoData();
-        }
-    } catch (e) {
-        console.error('Error loading state:', e);
-        state.categories = [...DEFAULT_CATEGORIES];
-    }
+function iconClass(name) {
+    return `fas ${name || 'fa-ellipsis-h'}`;
 }
 
-function saveState() {
-    localStorage.setItem(STORAGE_KEYS.accounts, JSON.stringify(state.accounts));
-    localStorage.setItem(STORAGE_KEYS.transactions, JSON.stringify(state.transactions));
-    localStorage.setItem(STORAGE_KEYS.categories, JSON.stringify(state.categories));
-    localStorage.setItem(STORAGE_KEYS.budgets, JSON.stringify(state.budgets));
-    localStorage.setItem(STORAGE_KEYS.goals, JSON.stringify(state.goals));
-    localStorage.setItem(STORAGE_KEYS.settings, JSON.stringify(state.settings));
+function toISODate(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
 }
 
-function seedDemoData() {
-    const acc1 = { id: generateId(), name: 'BCA', type: 'bank', balance: 5000000, currency: 'IDR', color: '#2196F3', icon: 'fa-university', createdAt: new Date().toISOString() };
-    const acc2 = { id: generateId(), name: 'GoPay', type: 'ewallet', balance: 500000, currency: 'IDR', color: '#4CAF50', icon: 'fa-mobile-alt', createdAt: new Date().toISOString() };
-    const acc3 = { id: generateId(), name: 'Tunai', type: 'cash', balance: 300000, currency: 'IDR', color: '#FF9800', icon: 'fa-money-bill-wave', createdAt: new Date().toISOString() };
-    state.accounts = [acc1, acc2, acc3];
-
-    const now = new Date();
-    const demoTransactions = [
-        { id: generateId(), type: 'income', amount: 2500000, categoryId: 'cat-1', accountId: acc1.id, toAccountId: null, date: formatDateISO(now), note: 'Gaji bulanan', isRecurring: false, recurringId: null, createdAt: now.toISOString() },
-        { id: generateId(), type: 'expense', amount: 150000, categoryId: 'cat-5', accountId: acc2.id, toAccountId: null, date: formatDateISO(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)), note: 'Makan siang', isRecurring: false, recurringId: null, createdAt: now.toISOString() },
-        { id: generateId(), type: 'expense', amount: 50000, categoryId: 'cat-6', accountId: acc2.id, toAccountId: null, date: formatDateISO(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 2)), note: 'Gojek ke kampus', isRecurring: false, recurringId: null, createdAt: now.toISOString() },
-        { id: generateId(), type: 'expense', amount: 200000, categoryId: 'cat-7', accountId: acc1.id, toAccountId: null, date: formatDateISO(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 3)), note: 'Belanja bulanan', isRecurring: false, recurringId: null, createdAt: now.toISOString() },
-        { id: generateId(), type: 'expense', amount: 100000, categoryId: 'cat-8', accountId: acc1.id, toAccountId: null, date: formatDateISO(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 4)), note: 'Tagihan listrik', isRecurring: false, recurringId: null, createdAt: now.toISOString() },
-        { id: generateId(), type: 'expense', amount: 75000, categoryId: 'cat-9', accountId: acc3.id, toAccountId: null, date: formatDateISO(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 5)), note: 'Nonton bioskop', isRecurring: false, recurringId: null, createdAt: now.toISOString() },
-        { id: generateId(), type: 'transfer', amount: 500000, categoryId: null, accountId: acc1.id, toAccountId: acc2.id, date: formatDateISO(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)), note: 'Transfer ke GoPay', isRecurring: false, recurringId: null, createdAt: now.toISOString() },
-        { id: generateId(), type: 'income', amount: 500000, categoryId: 'cat-2', accountId: acc1.id, toAccountId: null, date: formatDateISO(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6)), note: 'Proyek desain logo', isRecurring: false, recurringId: null, createdAt: now.toISOString() },
-        { id: generateId(), type: 'expense', amount: 300000, categoryId: 'cat-11', accountId: acc1.id, toAccountId: null, date: formatDateISO(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7)), note: 'Buku kuliah', isRecurring: false, recurringId: null, createdAt: now.toISOString() },
-        { id: generateId(), type: 'expense', amount: 50000, categoryId: 'cat-12', accountId: acc1.id, toAccountId: null, date: formatDateISO(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 2)), note: 'Tabungan bulanan', isRecurring: false, recurringId: null, createdAt: now.toISOString() }
-    ];
-    state.transactions = demoTransactions;
-
-    state.budgets = [
-        { id: generateId(), categoryId: 'cat-5', amount: 1500000, period: 'monthly', month: getMonthKey(now), createdAt: now.toISOString() },
-        { id: generateId(), categoryId: 'cat-6', amount: 500000, period: 'monthly', month: getMonthKey(now), createdAt: now.toISOString() },
-        { id: generateId(), categoryId: 'cat-7', amount: 1000000, period: 'monthly', month: getMonthKey(now), createdAt: now.toISOString() },
-        { id: generateId(), categoryId: 'cat-9', amount: 300000, period: 'monthly', month: getMonthKey(now), createdAt: now.toISOString() }
-    ];
-
-    state.goals = [
-        { id: generateId(), name: 'Laptop Baru', targetAmount: 15000000, currentAmount: 5000000, deadline: new Date(now.getFullYear(), now.getMonth() + 6, 0).toISOString().split('T')[0], color: '#2196F3', icon: 'fa-laptop', createdAt: now.toISOString() },
-        { id: generateId(), name: 'Dana Darurat', targetAmount: 10000000, currentAmount: 3000000, deadline: new Date(now.getFullYear(), now.getMonth() + 12, 0).toISOString().split('T')[0], color: '#4CAF50', icon: 'fa-shield-alt', createdAt: now.toISOString() }
-    ];
-
-    saveState();
+function parseDate(value) {
+    if (!value) return null;
+    const [y, m, d] = String(value).split('-').map(Number);
+    if (!y || !m || !d) return null;
+    return new Date(y, m - 1, d);
 }
 
-function formatDateISO(date) {
-    return date.toISOString().split('T')[0];
-}
-
-function getMonthKey(date) {
+function monthKey(date) {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
 }
 
-function formatCurrency(amount) {
-    const symbol = CURRENCY_SYMBOLS[state.settings.currency] || 'Rp';
-    const formatted = Math.abs(amount).toLocaleString('id-ID');
-    return `${symbol} ${formatted}`;
+function formatMoney(amount, opts = {}) {
+    const { sign = false, compact = null, code = false } = opts;
+    const currency = state.settings.currency || 'IDR';
+    const symbol = CURRENCY_SYMBOLS[currency] || 'Rp';
+    const locale = CURRENCY_LOCALE[currency] || 'id-ID';
+    const value = Number(amount) || 0;
+    const abs = Math.abs(value);
+    const useCompact = compact === null ? !!state.settings.compactNumbers : compact;
+
+    let text;
+    if (useCompact && abs >= 1000000) {
+        text = `${(abs / 1000000).toFixed(abs >= 10000000 ? 0 : 1).replace('.', ',')}jt`;
+    } else if (useCompact && abs >= 1000) {
+        text = `${(abs / 1000).toFixed(abs >= 100000 ? 0 : 1).replace('.', ',')}rb`;
+    } else {
+        text = abs.toLocaleString(locale);
+    }
+
+    const prefix = sign && value > 0 ? '+' : value < 0 ? '-' : '';
+    const suffix = code ? ` ${currency}` : '';
+    return `${prefix}${symbol} ${text}${suffix}`;
 }
 
-function formatDate(dateStr) {
-    const date = new Date(dateStr);
-    const day = String(date.getDate()).padStart(2, '0');
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const year = date.getFullYear();
+function formatNumber(amount) {
+    return (Number(amount) || 0).toLocaleString(CURRENCY_LOCALE[state.settings.currency] || 'id-ID');
+}
 
+function formatDate(value) {
+    const date = parseDate(value);
+    if (!date) return '-';
+    const d = String(date.getDate()).padStart(2, '0');
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const y = date.getFullYear();
     switch (state.settings.dateFormat) {
-        case 'MM/DD/YYYY': return `${month}/${day}/${year}`;
-        case 'YYYY-MM-DD': return `${year}-${month}-${day}`;
-        default: return `${day}/${month}/${year}`;
+        case 'MM/DD/YYYY': return `${m}/${d}/${y}`;
+        case 'YYYY-MM-DD': return `${y}-${m}-${d}`;
+        default: return `${d}/${m}/${y}`;
     }
 }
 
-function showToast(message, type = 'success') {
-    const container = document.getElementById('toastContainer');
-    const toast = document.createElement('div');
-    toast.className = `toast ${type}`;
-
-    const icons = { success: 'fa-check-circle', error: 'fa-exclamation-circle', warning: 'fa-exclamation-triangle' };
-    toast.innerHTML = `<i class="fas ${icons[type]}"></i><span class="toast-message">${message}</span>`;
-
-    container.appendChild(toast);
-
-    setTimeout(() => {
-        toast.classList.add('hiding');
-        setTimeout(() => toast.remove(), 300);
-    }, 3000);
+function formatDateLong(value) {
+    const date = parseDate(value);
+    if (!date) return '-';
+    return `${date.getDate()} ${MONTH_NAMES[date.getMonth()]} ${date.getFullYear()}`;
 }
 
-function openModal(title, bodyHTML, footerButtons) {
+function formatMonthShort(value) {
+    const date = typeof value === 'string' ? parseDate(`${value}-01`) : value;
+    if (!date) return '-';
+    return `${MONTH_NAMES[date.getMonth()].slice(0, 3)} ${String(date.getFullYear()).slice(2)}`;
+}
+
+function relativeDay(value) {
+    const date = parseDate(value);
+    if (!date) return '-';
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const diff = Math.round((date - today) / 86400000);
+    if (diff === 0) return 'Hari ini';
+    if (diff === -1) return 'Kemarin';
+    if (diff === 1) return 'Besok';
+    return formatDateLong(value);
+}
+
+function categoryOf(id) {
+    return state.categories.find(c => c.id === id) || null;
+}
+
+function accountOf(id) {
+    return state.accounts.find(a => a.id === id) || null;
+}
+
+function sum(list, fn) {
+    return list.reduce((total, item) => total + (fn ? fn(item) : item) || 0, 0);
+}
+
+function emptyState(icon, title, text, action) {
+    return `
+        <div class="empty">
+            <div class="empty__icon"><i class="fas ${icon}"></i></div>
+            <p class="empty__title">${esc(title)}</p>
+            <p class="empty__text">${esc(text)}</p>
+            ${action ? `<button class="btn btn-primary" data-action="${action.id}">${action.label}</button>` : ''}
+        </div>`;
+}
+
+function chartTheme() {
+    const styles = getComputedStyle(document.documentElement);
+    const value = (name) => styles.getPropertyValue(name).trim();
+    return {
+        text: value('--text-secondary'),
+        muted: value('--text-muted'),
+        border: value('--border'),
+        surface: value('--surface'),
+        income: value('--income'),
+        expense: value('--expense'),
+        transfer: value('--transfer')
+    };
+}
+
+function destroyChart(key) {
+    if (state.charts[key]) {
+        state.charts[key].destroy();
+        delete state.charts[key];
+    }
+}
+
+/* ---------- Toast -------------------------------------------------------- */
+
+const TOAST_ICONS = {
+    success: 'fa-circle-check',
+    error: 'fa-circle-exclamation',
+    warning: 'fa-triangle-exclamation',
+    info: 'fa-circle-info'
+};
+
+function toast(message, type = 'success') {
+    const stack = document.getElementById('toastContainer');
+    const el = document.createElement('div');
+    el.className = `toast is-${type}`;
+    el.innerHTML = `<i class="fas ${TOAST_ICONS[type] || TOAST_ICONS.info}"></i><span>${esc(message)}</span>`;
+    stack.appendChild(el);
+
+    const remove = () => {
+        el.classList.add('is-leaving');
+        setTimeout(() => el.remove(), 200);
+    };
+    setTimeout(remove, 3200);
+    el.addEventListener('click', remove);
+}
+
+function confirmAction(message) {
+    return window.confirm(message);
+}
+
+/* ---------- Modal -------------------------------------------------------- */
+
+let modalSubmitHandler = null;
+
+function openModal(title, bodyHTML, buttons = [], opts = {}) {
     document.getElementById('modalTitle').textContent = title;
     document.getElementById('modalBody').innerHTML = bodyHTML;
-    const footer = document.getElementById('modalFooter');
-    footer.innerHTML = '';
-    footerButtons.forEach(btn => {
-        const button = document.createElement('button');
-        button.className = `btn ${btn.class || 'btn-outline'}`;
-        button.textContent = btn.text;
-        button.onclick = btn.onClick;
-        footer.appendChild(button);
+    const modal = document.getElementById('modal');
+    modal.classList.toggle('modal--wide', !!opts.wide);
+
+    const foot = document.getElementById('modalFooter');
+    foot.innerHTML = '';
+    modalSubmitHandler = null;
+
+    buttons.forEach(cfg => {
+        const btn = document.createElement('button');
+        btn.className = `btn ${cfg.class || 'btn-secondary'}`;
+        btn.innerHTML = cfg.icon ? `<i class="fas ${cfg.icon}"></i> ${esc(cfg.text)}` : esc(cfg.text);
+
+        btn.addEventListener('click', () => {
+            if (!cfg.onClick) {
+                closeModal();
+                return;
+            }
+            // keepOpen handlers async: mereka menutup modal sendiri setelah sukses
+            if (!cfg.keepOpen) closeModal();
+            cfg.onClick();
+        });
+
+        if (cfg.keepOpen) modalSubmitHandler = cfg.onClick;
+        foot.appendChild(btn);
     });
-    document.getElementById('modalOverlay').classList.add('active');
+
+    document.getElementById('modalOverlay').classList.add('is-open');
+    const focusTarget = modal.querySelector('input:not([type="hidden"]), select');
+    if (focusTarget) setTimeout(() => focusTarget.focus(), 60);
 }
 
 function closeModal() {
-    document.getElementById('modalOverlay').classList.remove('active');
+    document.getElementById('modalOverlay').classList.remove('is-open');
+    document.getElementById('modalBody').innerHTML = '';
 }
 
-function navigateTo(page) {
+/* ---------- Theme -------------------------------------------------------- */
+
+function applyTheme(theme) {
+    document.documentElement.setAttribute('data-theme', theme);
+    const icon = document.getElementById('themeIcon');
+    if (icon) icon.className = theme === 'dark' ? 'fas fa-moon' : 'fas fa-sun';
+    localStorage.setItem(THEME_KEY, theme);
+
+    const hadCharts = Object.keys(state.charts).length > 0;
+    Object.keys(state.charts).forEach(destroyChart);
+    if (hadCharts && state.ready) renderCurrentPage();
+}
+
+function toggleTheme() {
+    const current = document.documentElement.getAttribute('data-theme');
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+}
+
+function initTheme() {
+    const saved = localStorage.getItem(THEME_KEY);
+    const preferred = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    applyTheme(preferred);
+}
+
+/* ---------- Data layer --------------------------------------------------- */
+
+async function loadState() {
+    const data = await Api.loadState();
+    state.accounts = data.accounts || [];
+    state.transactions = data.transactions || [];
+    state.categories = (data.categories && data.categories.length) ? data.categories : Api.DEFAULT_CATEGORIES.map(c => ({ ...c }));
+    state.budgets = data.budgets || [];
+    state.goals = data.goals || [];
+    state.settings = { ...Api.DEFAULT_SETTINGS, ...(data.settings || {}) };
+}
+
+function syncLocalCache() {
+    if (Api.isRemote) {
+        Api.saveLocal({
+            accounts: state.accounts,
+            transactions: state.transactions,
+            categories: state.categories,
+            budgets: state.budgets,
+            goals: state.goals,
+            settings: state.settings
+        });
+    }
+}
+
+async function persistAll() {
+    await Api.saveAll({
+        accounts: state.accounts,
+        transactions: state.transactions,
+        categories: state.categories,
+        budgets: state.budgets,
+        goals: state.goals,
+        settings: state.settings
+    });
+    syncLocalCache();
+}
+
+async function refreshFromSource() {
+    await loadState();
+    renderCurrentPage();
+}
+
+async function createRecord(collection, payload) {
+    const created = await Api.create(collection, payload);
+    await refreshFromSource();
+    return created;
+}
+
+async function updateRecord(collection, id, payload) {
+    const updated = await Api.update(collection, id, payload);
+    await refreshFromSource();
+    return updated;
+}
+
+async function deleteRecord(collection, id) {
+    await Api.remove(collection, id);
+    await refreshFromSource();
+}
+
+function updateConnectionBadge() {
+    const badge = document.getElementById('connectionBadge');
+    const label = badge.querySelector('.connection__label');
+    const remote = Api.isRemote;
+    badge.classList.toggle('is-remote', remote);
+    badge.classList.toggle('is-local', !remote);
+    label.textContent = remote ? 'Tersinkron dengan server' : 'Mode lokal (browser)';
+
+    const aboutMode = document.getElementById('aboutMode');
+    if (aboutMode) aboutMode.textContent = remote ? 'Server (port 3000)' : 'Lokal (localStorage)';
+}
+
+/* ---------- Navigation --------------------------------------------------- */
+
+function navigateTo(page, options = {}) {
     state.currentPage = page;
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
 
-    const pageEl = document.getElementById(`page-${page}`);
-    const navEl = document.querySelector(`.nav-item[data-page="${page}"]`);
-    if (pageEl) pageEl.classList.add('active');
-    if (navEl) navEl.classList.add('active');
+    document.querySelectorAll('.page').forEach(el => el.classList.toggle('is-active', el.id === `page-${page}`));
+    document.querySelectorAll('.nav-link[data-page]').forEach(el => el.classList.toggle('is-active', el.dataset.page === page));
 
-    const titles = {
-        dashboard: 'Dashboard',
-        transactions: 'Transaksi',
-        accounts: 'Akun',
-        budgets: 'Anggaran',
-        goals: 'Target Keuangan',
-        reports: 'Laporan',
-        settings: 'Pengaturan'
-    };
-    document.getElementById('pageTitle').textContent = titles[page] || 'Dashboard';
+    const meta = PAGE_META[page] || PAGE_META.dashboard;
+    document.getElementById('pageTitle').textContent = meta.title;
+    document.getElementById('pageSubtitle').textContent = meta.subtitle;
 
-    if (window.innerWidth < 992) {
-        document.getElementById('sidebar').classList.remove('open');
-    }
+    closeSidebar();
 
-    renderPage(page);
+    // navigasi saat data belum siap: tampilan berubah, render ditunda
+    if (state.ready) renderCurrentPage();
+    if (options.scroll !== false) window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-function renderPage(page) {
-    switch (page) {
-        case 'dashboard': renderDashboard(); break;
-        case 'transactions': renderTransactions(); break;
-        case 'accounts': renderAccounts(); break;
-        case 'budgets': renderBudgets(); break;
-        case 'goals': renderGoals(); break;
-        case 'reports': renderReports(); break;
-        case 'settings': renderSettings(); break;
-    }
+function renderCurrentPage() {
+    const renderers = {
+        dashboard: renderDashboard,
+        transactions: renderTransactions,
+        calendar: renderCalendar,
+        budgets: renderBudgets,
+        goals: renderGoals,
+        accounts: renderAccounts,
+        categories: renderCategories,
+        reports: renderReports,
+        settings: renderSettings
+    };
+    (renderers[state.currentPage] || renderDashboard)();
+}
+
+function openSidebar() {
+    document.getElementById('sidebar').classList.add('is-open');
+    document.getElementById('sidebarBackdrop').classList.add('is-open');
+}
+
+function closeSidebar() {
+    document.getElementById('sidebar').classList.remove('is-open');
+    document.getElementById('sidebarBackdrop').classList.remove('is-open');
+}
+
+/* ---------- Dashboard ---------------------------------------------------- */
+
+function monthlyStats(date = new Date()) {
+    const key = monthKey(date);
+    const list = state.transactions.filter(t => monthKey(parseDate(t.date) || new Date()) === key);
+    const income = sum(list.filter(t => t.type === 'income'), t => Number(t.amount));
+    const expense = sum(list.filter(t => t.type === 'expense'), t => Number(t.amount));
+    return { income, expense, net: income - expense, list };
 }
 
 function renderDashboard() {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
+    const stats = monthlyStats();
+    const totalBalance = sum(state.accounts, a => Number(a.balance));
+    const expenseRatio = stats.income > 0 ? Math.round((stats.expense / stats.income) * 100) : 0;
 
-    const monthlyTransactions = state.transactions.filter(t => {
-        const d = new Date(t.date);
-        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-    });
+    document.getElementById('totalBalance').textContent = formatMoney(totalBalance);
+    document.getElementById('monthlyIncome').textContent = formatMoney(stats.income);
+    document.getElementById('monthlyExpense').textContent = formatMoney(stats.expense);
+    document.getElementById('monthlySavings').textContent = formatMoney(stats.net);
+    document.getElementById('monthlySavings').className = `hero-meta__value ${stats.net >= 0 ? 'is-income' : 'is-expense'}`;
 
-    const income = monthlyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
-    const expense = monthlyTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
-    const totalBalance = state.accounts.reduce((sum, a) => sum + a.balance, 0);
-    const savings = income - expense;
+    const trendBadge = document.getElementById('balanceTrend');
+    if (stats.income > 0) {
+        const healthy = expenseRatio <= 80;
+        trendBadge.className = `badge ${healthy ? 'is-income' : 'is-expense'}`;
+        trendBadge.innerHTML = `<i class="fas ${healthy ? 'fa-arrow-down' : 'fa-arrow-up'}"></i> ${expenseRatio}% pengeluaran`;
+    } else {
+        trendBadge.className = 'badge';
+        trendBadge.textContent = 'Belum ada pemasukan';
+    }
 
-    document.getElementById('totalBalance').textContent = formatCurrency(totalBalance);
-    document.getElementById('monthlyExpense').textContent = formatCurrency(expense);
-    document.getElementById('monthlyIncome').textContent = formatCurrency(income);
-    document.getElementById('monthlySavings').textContent = formatCurrency(savings);
-
+    renderStatCards();
     renderTrendChart();
     renderCategoryChart();
     renderRecentTransactions();
+    renderBudgetMini();
+}
+
+function renderStatCards() {
+    const stats = monthlyStats();
+    const previous = monthlyStats(new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1));
+    const currentKey = monthKey(new Date());
+
+    const budgets = state.budgets.filter(b => b.month === currentKey);
+    const budgetTotal = sum(budgets, b => Number(b.amount));
+    const budgetSpent = sum(budgets, b => sumByCategory(b.categoryId, currentKey));
+
+    const accountsWithCredit = state.accounts.filter(a => a.type === 'credit');
+    const creditUsed = sum(accountsWithCredit, a => Math.abs(Math.min(0, Number(a.balance))));
+
+    const savingsRate = stats.income > 0 ? Math.round((stats.net / stats.income) * 100) : 0;
+    const expenseRatio = stats.income > 0 ? Math.round((stats.expense / stats.income) * 100) : 0;
+    const trendDelta = previous.income > 0
+        ? Math.round(((stats.income - previous.income) / previous.income) * 100)
+        : null;
+
+    const cards = [
+        {
+            icon: 'fa-arrow-down',
+            label: 'Pemasukan',
+            value: formatMoney(stats.income, { compact: true }),
+            foot: trendDelta === null ? 'Bulan ini' : `${trendDelta >= 0 ? '+' : ''}${trendDelta}% dari bulan lalu`,
+            tone: 'is-income'
+        },
+        {
+            icon: 'fa-arrow-up',
+            label: 'Pengeluaran',
+            value: formatMoney(stats.expense, { compact: true }),
+            foot: stats.income > 0 ? `${expenseRatio}% dari pemasukan` : 'Bulan ini',
+            tone: 'is-expense'
+        },
+        {
+            icon: 'fa-scale-balanced',
+            label: 'Tingkat Tabung',
+            value: `${savingsRate}%`,
+            foot: stats.net >= 0 ? 'Bagus, lanjutkan' : 'Pengeluaran melebihi',
+            tone: stats.net >= 0 ? 'is-income' : 'is-expense'
+        },
+        {
+            icon: 'fa-building-columns',
+            label: 'Total Akun',
+            value: formatNumber(state.accounts.length),
+            foot: creditUsed > 0 ? `Kredit terpakai ${formatMoney(creditUsed, { compact: true })}` : `${formatNumber(state.accounts.length)} akun aktif`,
+            tone: ''
+        }
+    ];
+
+    const budgetCard = budgetTotal > 0 ? {
+        icon: 'fa-chart-simple',
+        label: 'Pakai Anggaran',
+        value: `${Math.round((budgetSpent / budgetTotal) * 100)}%`,
+        foot: `${formatMoney(budgetTotal - budgetSpent, { compact: true })} tersisa`,
+        tone: budgetSpent > budgetTotal ? 'is-expense' : ''
+    } : null;
+
+    const list = budgetCard ? [...cards.slice(0, 3), budgetCard] : cards;
+
+    document.getElementById('statRow').innerHTML = list.map(card => `
+        <article class="stat-card">
+            <div class="stat-card__top">
+                <span class="stat-card__label">${esc(card.label)}</span>
+                <i class="fas ${card.icon} ${card.tone}" style="font-size:13px"></i>
+            </div>
+            <span class="stat-card__value">${esc(card.value)}</span>
+            <span class="stat-card__foot">${esc(card.foot)}</span>
+        </article>
+    `).join('');
+}
+
+function sumByCategory(categoryId, key) {
+    return sum(
+        state.transactions.filter(t =>
+            t.type === 'expense' &&
+            t.categoryId === categoryId &&
+            monthKey(parseDate(t.date) || new Date()) === key
+        ),
+        t => Number(t.amount)
+    );
 }
 
 function renderTrendChart() {
-    const ctx = document.getElementById('trendChart');
-    if (!ctx) return;
+    const canvas = document.getElementById('trendChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    destroyChart('trend');
 
-    if (state.charts.trend) state.charts.trend.destroy();
-
+    const theme = chartTheme();
     const months = [];
     const incomeData = [];
     const expenseData = [];
     const now = new Date();
+    const count = state.ui.trendMonths;
 
-    for (let i = 5; i >= 0; i--) {
-        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const monthName = d.toLocaleDateString('id-ID', { month: 'short' });
-        months.push(monthName);
-
-        const monthTransactions = state.transactions.filter(t => {
-            const td = new Date(t.date);
-            return td.getMonth() === d.getMonth() && td.getFullYear() === d.getFullYear();
-        });
-
-        incomeData.push(monthTransactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0));
-        expenseData.push(monthTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0));
+    for (let i = count - 1; i >= 0; i--) {
+        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const key = monthKey(date);
+        const list = state.transactions.filter(t => monthKey(parseDate(t.date) || new Date()) === key);
+        months.push(MONTH_NAMES[date.getMonth()].slice(0, 3));
+        incomeData.push(sum(list.filter(t => t.type === 'income'), t => Number(t.amount)));
+        expenseData.push(sum(list.filter(t => t.type === 'expense'), t => Number(t.amount)));
     }
 
-    state.charts.trend = new Chart(ctx, {
+    state.charts.trend = new Chart(canvas, {
         type: 'line',
         data: {
             labels: months,
@@ -284,114 +564,171 @@ function renderTrendChart() {
                 {
                     label: 'Pemasukan',
                     data: incomeData,
-                    borderColor: '#4CAF50',
-                    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                    borderColor: theme.income,
+                    backgroundColor: hexToRgba(theme.income, 0.08),
+                    borderWidth: 2,
                     fill: true,
-                    tension: 0.4
+                    tension: 0.35,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    pointHoverBorderWidth: 2
                 },
                 {
                     label: 'Pengeluaran',
                     data: expenseData,
-                    borderColor: '#f44336',
-                    backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                    borderColor: theme.expense,
+                    backgroundColor: hexToRgba(theme.expense, 0.08),
+                    borderWidth: 2,
                     fill: true,
-                    tension: 0.4
+                    tension: 0.35,
+                    pointRadius: 0,
+                    pointHoverRadius: 4,
+                    pointHoverBorderWidth: 2
                 }
             ]
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            plugins: { legend: { labels: { color: getComputedStyle(document.body).getPropertyValue('--text-secondary') } } },
+        options: baseChartOptions(theme, {
+            plugins: {
+                legend: {
+                    position: 'top',
+                    align: 'end',
+                    labels: { color: theme.text, boxWidth: 8, boxHeight: 8, usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 12 } }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => ` ${ctx.dataset.label}: ${formatMoney(ctx.parsed.y, { compact: true })}`
+                    }
+                }
+            },
             scales: {
-                x: { ticks: { color: getComputedStyle(document.body).getPropertyValue('--text-muted') }, grid: { color: getComputedStyle(document.body).getPropertyValue('--border') } },
-                y: { ticks: { color: getComputedStyle(document.body).getPropertyValue('--text-muted') }, grid: { color: getComputedStyle(document.body).getPropertyValue('--border') } }
+                x: { ticks: { color: theme.muted, font: { size: 11 } }, grid: { display: false }, border: { display: false } },
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        color: theme.muted,
+                        font: { size: 11 },
+                        callback: (v) => formatMoney(v, { compact: true })
+                    },
+                    grid: { color: theme.border },
+                    border: { display: false }
+                }
             }
-        }
+        })
     });
 }
 
 function renderCategoryChart() {
-    const ctx = document.getElementById('categoryChart');
-    if (!ctx) return;
+    const canvas = document.getElementById('categoryChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    destroyChart('category');
 
-    if (state.charts.category) state.charts.category.destroy();
+    const theme = chartTheme();
+    const key = monthKey(new Date());
+    const totals = expenseByCategory(key);
 
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
+    const entries = Object.entries(totals).sort((a, b) => b[1] - a[1]).slice(0, 6);
+    const hasData = entries.length > 0;
 
-    const expenseTransactions = state.transactions.filter(t => {
-        const d = new Date(t.date);
-        return t.type === 'expense' && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-    });
-
-    const categoryTotals = {};
-    expenseTransactions.forEach(t => {
-        const cat = state.categories.find(c => c.id === t.categoryId);
-        if (cat) {
-            categoryTotals[cat.name] = (categoryTotals[cat.name] || 0) + t.amount;
-        }
-    });
-
-    const labels = Object.keys(categoryTotals);
-    const data = Object.values(categoryTotals);
-    const colors = labels.map((_, i) => {
-        const palette = ['#f44336', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#2196F3', '#03A9F4', '#00BCD4', '#009688', '#4CAF50'];
-        return palette[i % palette.length];
-    });
-
-    state.charts.category = new Chart(ctx, {
+    state.charts.category = new Chart(canvas, {
         type: 'doughnut',
         data: {
-            labels: labels.length ? labels : ['Belum ada data'],
+            labels: hasData ? entries.map(e => e[0]) : ['Belum ada data'],
             datasets: [{
-                data: data.length ? data : [1],
-                backgroundColor: data.length ? colors : ['#9E9E9E'],
-                borderWidth: 0
+                data: hasData ? entries.map(e => e[1]) : [1],
+                backgroundColor: hasData ? entries.map((_, i) => PALETTE[i % PALETTE.length]) : theme.border,
+                borderWidth: 0,
+                hoverOffset: 6
             }]
         },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
+        options: baseChartOptions(theme, {
+            cutout: '68%',
             plugins: {
-                legend: { position: 'bottom', labels: { color: getComputedStyle(document.body).getPropertyValue('--text-secondary'), padding: 15 } }
+                legend: {
+                    position: 'bottom',
+                    labels: { color: theme.text, boxWidth: 8, boxHeight: 8, usePointStyle: true, pointStyle: 'circle', padding: 14, font: { size: 11.5 } }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: (ctx) => {
+                            const total = ctx.dataset.data.reduce((s, v) => s + v, 0);
+                            const pct = total > 0 ? Math.round((ctx.parsed / total) * 100) : 0;
+                            return ` ${ctx.label}: ${formatMoney(ctx.parsed, { compact: true })} (${pct}%)`;
+                        }
+                    }
+                }
             }
-        }
+        })
     });
+}
+
+function expenseByCategory(key) {
+    const totals = {};
+    state.transactions
+        .filter(t => t.type === 'expense' && monthKey(parseDate(t.date) || new Date()) === key)
+        .forEach(t => {
+            const cat = categoryOf(t.categoryId);
+            if (!cat) return;
+            totals[cat.name] = (totals[cat.name] || 0) + Number(t.amount);
+        });
+    return totals;
+}
+
+function baseChartOptions(theme, extra = {}) {
+    return {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        ...extra
+    };
+}
+
+function hexToRgba(hex, alpha) {
+    const clean = String(hex || '').replace('#', '');
+    if (clean.length !== 6) return `rgba(0,0,0,${alpha})`;
+    const r = parseInt(clean.slice(0, 2), 16);
+    const g = parseInt(clean.slice(2, 4), 16);
+    const b = parseInt(clean.slice(4, 6), 16);
+    return `rgba(${r},${g},${b},${alpha})`;
 }
 
 function renderRecentTransactions() {
     const container = document.getElementById('recentTransactions');
-    const recent = [...state.transactions].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 5);
+    const recent = [...state.transactions]
+        .sort((a, b) => (parseDate(b.date) - parseDate(a.date)) || (b.createdAt > a.createdAt ? 1 : -1))
+        .slice(0, 5);
 
     if (!recent.length) {
-        container.innerHTML = '<div class="empty-state"><i class="fas fa-receipt"></i><p>Belum ada transaksi</p></div>';
+        container.innerHTML = emptyState('fa-receipt', 'Belum ada transaksi', 'Mulai catat pengeluaran harianmu untuk melihat ringkasan di sini.');
         return;
     }
 
-    container.innerHTML = recent.map(t => {
-        const cat = state.categories.find(c => c.id === t.categoryId);
-        const acc = state.accounts.find(a => a.id === t.accountId);
-        const icon = cat ? cat.icon : 'fa-exchange-alt';
-        const color = cat ? cat.color : '#2196F3';
-        const typeClass = t.type === 'income' ? 'income' : t.type === 'expense' ? 'expense' : 'transfer';
-        const sign = t.type === 'income' ? '+' : t.type === 'expense' ? '-' : '';
-
-        return `
-            <div class="transaction-item">
-                <div class="transaction-icon" style="background: ${color}">
-                    <i class="fas ${icon}"></i>
-                </div>
-                <div class="transaction-info">
-                    <div class="transaction-note">${t.note || (cat ? cat.name : 'Transfer')}</div>
-                    <div class="transaction-meta">${formatDate(t.date)} • ${acc ? acc.name : '-'}</div>
-                </div>
-                <div class="transaction-amount ${typeClass}">${sign}${formatCurrency(t.amount)}</div>
-            </div>
-        `;
-    }).join('');
+    container.innerHTML = recent.map(t => transactionRowHTML(t)).join('');
 }
+
+function transactionRowHTML(t) {
+    const cat = categoryOf(t.categoryId);
+    const account = accountOf(t.accountId);
+    const target = accountOf(t.toAccountId);
+    const color = cat ? cat.color : PALETTE[8];
+    const icon = cat ? cat.icon : 'fa-arrow-right-arrow-left';
+    const meta = target
+        ? `${relativeDay(t.date)} · ${esc(account ? account.name : '-')} → ${esc(target.name)}`
+        : `${relativeDay(t.date)} · ${esc(account ? account.name : '-')}`;
+
+    return `
+        <button class="tx-item" data-edit-tx="${esc(t.id)}">
+            <span class="icon-dot" style="background:${esc(color)}"><i class="fas ${esc(icon)}"></i></span>
+            <span class="tx-item__body">
+                <span class="tx-item__title">${esc(t.note || (cat ? cat.name : 'Transfer'))}</span>
+                <span class="tx-item__meta">${meta}</span>
+            </span>
+            <span class="tx-item__amount ${t.type === 'income' ? 'is-income' : t.type === 'expense' ? 'is-expense' : 'is-transfer'}">
+                ${t.type === 'income' ? '+' : t.type === 'expense' ? '-' : ''}${formatMoney(t.amount)}
+            </span>
+        </button>`;
+}
+
+/* ---------- Transactions -------------------------------------------------- */
 
 function renderTransactions() {
     populateFilterOptions();
@@ -401,825 +738,1106 @@ function renderTransactions() {
 function populateFilterOptions() {
     const accountSelect = document.getElementById('filterAccount');
     const categorySelect = document.getElementById('filterCategory');
+    const currentAccount = accountSelect.value;
+    const currentCategory = categorySelect.value;
 
-    accountSelect.innerHTML = '<option value="">Semua</option>' + state.accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
-    categorySelect.innerHTML = '<option value="">Semua</option>' + state.categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    accountSelect.innerHTML = '<option value="">Semua akun</option>' +
+        state.accounts.map(a => `<option value="${esc(a.id)}">${esc(a.name)}</option>`).join('');
+
+    categorySelect.innerHTML = '<option value="">Semua kategori</option>' +
+        state.categories.map(c => `<option value="${esc(c.id)}">${esc(c.name)} (${c.type === 'income' ? 'masuk' : 'keluar'})</option>`).join('');
+
+    accountSelect.value = currentAccount;
+    categorySelect.value = currentCategory;
+}
+
+function currentFilters() {
+    return {
+        query: document.getElementById('txSearch').value.trim().toLowerCase(),
+        type: document.getElementById('filterType').value,
+        accountId: document.getElementById('filterAccount').value,
+        categoryId: document.getElementById('filterCategory').value,
+        from: document.getElementById('filterDateFrom').value,
+        to: document.getElementById('filterDateTo').value
+    };
+}
+
+function filteredTransactions() {
+    const f = currentFilters();
+
+    return [...state.transactions]
+        .filter(t => {
+            if (f.type && t.type !== f.type) return false;
+            if (f.accountId && t.accountId !== f.accountId && t.toAccountId !== f.accountId) return false;
+            if (f.categoryId && t.categoryId !== f.categoryId) return false;
+            if (f.from && t.date < f.from) return false;
+            if (f.to && t.date > f.to) return false;
+            if (f.query) {
+                const cat = categoryOf(t.categoryId);
+                const account = accountOf(t.accountId);
+                const haystack = [
+                    t.note || '',
+                    cat ? cat.name : '',
+                    account ? account.name : '',
+                    formatMoney(t.amount)
+                ].join(' ').toLowerCase();
+                if (!haystack.includes(f.query)) return false;
+            }
+            return true;
+        })
+        .sort((a, b) => (parseDate(b.date) - parseDate(a.date)) || (b.createdAt > a.createdAt ? 1 : -1));
 }
 
 function applyFilters() {
-    const type = document.getElementById('filterType').value;
-    const accountId = document.getElementById('filterAccount').value;
-    const categoryId = document.getElementById('filterCategory').value;
-    const dateFrom = document.getElementById('filterDateFrom').value;
-    const dateTo = document.getElementById('filterDateTo').value;
-
-    let filtered = [...state.transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
-
-    if (type) filtered = filtered.filter(t => t.type === type);
-    if (accountId) filtered = filtered.filter(t => t.accountId === accountId || t.toAccountId === accountId);
-    if (categoryId) filtered = filtered.filter(t => t.categoryId === categoryId);
-    if (dateFrom) filtered = filtered.filter(t => t.date >= dateFrom);
-    if (dateTo) filtered = filtered.filter(t => t.date <= dateTo);
-
+    const rows = filteredTransactions();
     const tbody = document.getElementById('transactionsTableBody');
+    const countEl = document.getElementById('txCount');
 
-    if (!filtered.length) {
-        tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><i class="fas fa-receipt"></i><p>Tidak ada transaksi ditemukan</p></div></td></tr>';
+    const income = sum(rows.filter(t => t.type === 'income'), t => Number(t.amount));
+    const expense = sum(rows.filter(t => t.type === 'expense'), t => Number(t.amount));
+    countEl.textContent = `${formatNumber(rows.length)} transaksi · masuk ${formatMoney(income, { compact: true })} · keluar ${formatMoney(expense, { compact: true })}`;
+
+    if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="6">${emptyState('fa-magnifying-glass', 'Tidak ada transaksi', 'Coba ubah kata kunci atau filter yang dipilih.')}</td></tr>`;
         return;
     }
 
-    tbody.innerHTML = filtered.map(t => {
-        const cat = state.categories.find(c => c.id === t.categoryId);
-        const acc = state.accounts.find(a => a.id === t.accountId);
-        const toAcc = state.accounts.find(a => a.id === t.toAccountId);
-        const typeClass = t.type === 'income' ? 'amount-income' : t.type === 'expense' ? 'amount-expense' : 'amount-transfer';
-        const typeLabel = t.type === 'income' ? 'Pemasukan' : t.type === 'expense' ? 'Pengeluaran' : 'Transfer';
+    tbody.innerHTML = rows.map(t => {
+        const cat = categoryOf(t.categoryId);
+        const account = accountOf(t.accountId);
+        const target = accountOf(t.toAccountId);
+
+        const categoryCell = cat
+            ? `<span class="table__cat"><span class="table__cat-dot" style="background:${esc(cat.color)}"></span>${esc(cat.name)}</span>`
+            : `<span class="badge is-transfer">Transfer</span>`;
+
+        const accountCell = target
+            ? `${esc(account ? account.name : '-')} <span class="table__muted">→ ${esc(target.name)}</span>`
+            : esc(account ? account.name : '-');
+
+        const amountClass = t.type === 'income' ? 'is-income' : t.type === 'expense' ? 'is-expense' : 'is-transfer';
+        const prefix = t.type === 'income' ? '+' : t.type === 'expense' ? '-' : '';
 
         return `
             <tr>
-                <td>${formatDate(t.date)}</td>
-                <td>${t.note || '-'}</td>
-                <td>${cat ? cat.name : typeLabel}</td>
-                <td>${acc ? acc.name : '-'}${toAcc ? ` → ${toAcc.name}` : ''}</td>
-                <td class="${typeClass}">${formatCurrency(t.amount)}</td>
+                <td class="table__muted" style="white-space:nowrap">${formatDate(t.date)}</td>
                 <td>
-                    <button class="btn-icon" onclick="editTransaction('${t.id}')" title="Edit"><i class="fas fa-edit"></i></button>
-                    <button class="btn-icon danger" onclick="deleteTransaction('${t.id}')" title="Hapus"><i class="fas fa-trash"></i></button>
+                    <button class="link-btn" data-edit-tx="${esc(t.id)}" style="color:var(--text);font-weight:500">
+                        ${esc(t.note || (cat ? cat.name : 'Transfer'))}
+                    </button>
                 </td>
-            </tr>
-        `;
+                <td class="table__hide-sm">${categoryCell}</td>
+                <td class="table__hide-sm table__muted">${accountCell}</td>
+                <td class="is-right table__cell--amount ${amountClass}">${prefix}${formatMoney(t.amount)}</td>
+                <td>
+                    <div class="table__actions">
+                        <button class="icon-btn icon-btn--sm" data-edit-tx="${esc(t.id)}" title="Edit"><i class="fas fa-pen"></i></button>
+                        <button class="icon-btn icon-btn--sm is-danger" data-delete-tx="${esc(t.id)}" title="Hapus"><i class="fas fa-trash"></i></button>
+                    </div>
+                </td>
+            </tr>`;
     }).join('');
 }
 
-function renderAccounts() {
-    const grid = document.getElementById('accountsGrid');
+function resetFilters() {
+    document.getElementById('txSearch').value = '';
+    document.getElementById('filterType').value = '';
+    document.getElementById('filterAccount').value = '';
+    document.getElementById('filterCategory').value = '';
+    document.getElementById('filterDateFrom').value = '';
+    document.getElementById('filterDateTo').value = '';
+    applyFilters();
+}
 
-    if (!state.accounts.length) {
-        grid.innerHTML = '<div class="empty-state"><i class="fas fa-university"></i><p>Belum ada akun. Tambahkan akun pertama Anda.</p></div>';
-        return;
+/* ---------- Calendar ----------------------------------------------------- */
+
+function renderCalendar() {
+    const month = state.ui.calendarMonth;
+    const year = month.getFullYear();
+    const mIndex = month.getMonth();
+
+    document.getElementById('calLabel').textContent = `${MONTH_NAMES[mIndex]} ${year}`;
+    document.getElementById('calTitle').textContent = `${MONTH_NAMES[mIndex]} ${year}`;
+
+    const key = `${year}-${String(mIndex + 1).padStart(2, '0')}`;
+    const dailyTotals = {};
+    state.transactions
+        .filter(t => t.type === 'expense' && String(t.date).startsWith(key))
+        .forEach(t => {
+            const day = String(t.date).slice(8, 10);
+            dailyTotals[Number(day)] = (dailyTotals[Number(day)] || 0) + Number(t.amount);
+        });
+
+    const firstDay = new Date(year, mIndex, 1).getDay();
+    const daysInMonth = new Date(year, mIndex + 1, 0).getDate();
+    const todayStr = toISODate(new Date());
+
+    const cells = [];
+    DAY_NAMES.forEach(name => cells.push(`<div class="calendar__head">${name}</div>`));
+    for (let i = 0; i < firstDay; i++) cells.push('<div class="calendar__day is-empty"></div>');
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const total = dailyTotals[day] || 0;
+        const dateStr = `${key}-${String(day).padStart(2, '0')}`;
+        const classes = ['calendar__day'];
+        if (dateStr === todayStr) classes.push('is-today');
+        if (day === state.ui.calendarDate) classes.push('is-selected');
+
+        cells.push(`
+            <button class="${classes.join(' ')}" data-cal-day="${day}" data-cal-month="${key}">
+                <span class="calendar__num">${day}</span>
+                ${total > 0 ? `<span class="calendar__amount">${formatMoney(total, { compact: true })}</span>` : ''}
+            </button>`);
     }
 
-    grid.innerHTML = state.accounts.map(acc => `
-        <div class="account-card">
-            <div class="account-header">
-                <div class="account-icon" style="background: ${acc.color}">
-                    <i class="fas ${acc.icon || 'fa-wallet'}"></i>
-                </div>
-                <div>
-                    <div class="account-name">${acc.name}</div>
-                    <div class="account-type">${acc.type}</div>
-                </div>
-            </div>
-            <div class="account-balance">${formatCurrency(acc.balance)}</div>
-            <div style="margin-top: 12px; display: flex; gap: 8px;">
-                <button class="btn btn-outline btn-sm" onclick="editAccount('${acc.id}')"><i class="fas fa-edit"></i> Edit</button>
-                <button class="btn btn-outline btn-sm" onclick="deleteAccount('${acc.id}')"><i class="fas fa-trash"></i> Hapus</button>
-            </div>
-        </div>
-    `).join('');
+    document.getElementById('calendarGrid').innerHTML = cells.join('');
+
+    renderCalendarDay();
 }
+
+function renderCalendarDay() {
+    const month = state.ui.calendarMonth;
+    const key = `${month.getFullYear()}-${String(month.getMonth() + 1).padStart(2, '0')}`;
+    const dateStr = `${key}-${String(state.ui.calendarDate).padStart(2, '0')}`;
+
+    const dayList = state.transactions
+        .filter(t => t.date === dateStr)
+        .sort((a, b) => Number(b.amount) - Number(a.amount));
+
+    const income = sum(dayList.filter(t => t.type === 'income'), t => Number(t.amount));
+    const expense = sum(dayList.filter(t => t.type === 'expense'), t => Number(t.amount));
+
+    document.getElementById('calDayTitle').textContent = formatDateLong(dateStr);
+    document.getElementById('calDaySummary').textContent = dayList.length
+        ? `Masuk ${formatMoney(income, { compact: true })} · Keluar ${formatMoney(expense, { compact: true })}`
+        : 'Tidak ada transaksi';
+
+    const container = document.getElementById('calDayList');
+    if (!dayList.length) {
+        container.innerHTML = emptyState('fa-calendar-day', 'Hari tanpa transaksi', 'Belum ada catatan untuk tanggal ini.');
+        return;
+    }
+    container.innerHTML = dayList.map(t => transactionRowHTML(t)).join('');
+}
+
+function shiftCalendarMonth(delta) {
+    const month = state.ui.calendarMonth;
+    state.ui.calendarMonth = new Date(month.getFullYear(), month.getMonth() + delta, 1);
+    state.ui.calendarDate = 1;
+    renderCalendar();
+}
+
+/* ---------- Budgets ------------------------------------------------------ */
 
 function renderBudgets() {
     const container = document.getElementById('budgetsList');
-    const now = new Date();
-    const currentMonthKey = getMonthKey(now);
+    const key = monthKey(new Date());
+    const budgets = state.budgets.filter(b => b.month === key);
 
-    const monthlyBudgets = state.budgets.filter(b => b.month === currentMonthKey);
-
-    if (!monthlyBudgets.length) {
-        container.innerHTML = '<div class="empty-state"><i class="fas fa-wallet"></i><p>Belum ada anggaran. Tambahkan anggaran bulanan Anda.</p></div>';
+    if (!budgets.length) {
+        container.innerHTML = emptyState('fa-chart-simple', 'Belum ada anggaran', 'Tetapkan batas belanja per kategori agar pengeluaran lebih terkendali.', { id: 'addBudget', label: 'Tambah Anggaran' });
         return;
     }
 
-    container.innerHTML = monthlyBudgets.map(budget => {
-        const cat = state.categories.find(c => c.id === budget.categoryId);
+    container.innerHTML = budgets.map(budget => {
+        const cat = categoryOf(budget.categoryId);
         if (!cat) return '';
 
-        const spent = state.transactions
-            .filter(t => {
-                const d = new Date(t.date);
-                return t.type === 'expense' && t.categoryId === budget.categoryId && getMonthKey(d) === currentMonthKey;
-            })
-            .reduce((sum, t) => sum + t.amount, 0);
-
-        const percent = Math.min((spent / budget.amount) * 100, 100);
-        const remaining = budget.amount - spent;
-        const progressClass = percent >= 100 ? 'danger' : percent >= 75 ? 'warning' : 'safe';
+        const spent = sumByCategory(budget.categoryId, key);
+        const limit = Number(budget.amount);
+        const percent = Math.min(Math.round((spent / limit) * 100), 100);
+        const remaining = limit - spent;
+        const tone = percent >= 100 ? 'is-danger' : percent >= 75 ? 'is-warning' : 'is-safe';
 
         return `
-            <div class="budget-item">
-                <div class="budget-header">
-                    <div class="budget-category">
-                        <i class="fas ${cat.icon}" style="background: ${cat.color}"></i>
-                        <span>${cat.name}</span>
+            <article class="budget-card">
+                <div class="budget-card__head">
+                    <div style="display:flex;align-items:center;gap:10px">
+                        <span class="icon-dot" style="background:${esc(cat.color)}"><i class="fas ${esc(cat.icon)}"></i></span>
+                        <div>
+                            <div class="budget-card__name">${esc(cat.name)}</div>
+                            <div class="budget-card__sub">${formatMonthShort(key)}</div>
+                        </div>
                     </div>
-                    <div class="budget-amount">
-                        <span class="spent">${formatCurrency(spent)}</span> / ${formatCurrency(budget.amount)}
-                        (<span class="${remaining >= 0 ? 'remaining' : 'over'}">${remaining >= 0 ? formatCurrency(remaining) + ' tersisa' : 'Lebih ' + formatCurrency(Math.abs(remaining))}</span>)
+                    <div class="row-actions" style="margin:0">
+                        <button class="icon-btn icon-btn--sm" data-edit-budget="${esc(budget.id)}" title="Edit"><i class="fas fa-pen"></i></button>
+                        <button class="icon-btn icon-btn--sm is-danger" data-delete-budget="${esc(budget.id)}" title="Hapus"><i class="fas fa-trash"></i></button>
                     </div>
                 </div>
-                <div class="progress-bar">
-                    <div class="progress-fill ${progressClass}" style="width: ${percent}%"></div>
+                <div>
+                    <div class="budget-card__values">
+                        <span class="budget-card__spent">${formatMoney(spent)}</span>
+                        <span class="budget-card__limit">dari ${formatMoney(limit)}</span>
+                    </div>
+                    <div class="progress">
+                        <div class="progress__fill ${tone}" style="width:${percent}%"></div>
+                    </div>
+                    <div class="budget-card__foot">
+                        <span>${percent}% terpakai</span>
+                        <span class="badge ${remaining >= 0 ? 'is-income' : 'is-expense'}">
+                            ${remaining >= 0 ? `${formatMoney(remaining)} tersisa` : `Lebih ${formatMoney(Math.abs(remaining))}`}
+                        </span>
+                    </div>
                 </div>
-                <div style="margin-top: 8px; display: flex; justify-content: space-between; align-items: center;">
-                    <span style="font-size: 0.8rem; color: var(--text-muted);">${percent.toFixed(1)}% terpakai</span>
-                    <button class="btn-icon danger" onclick="deleteBudget('${budget.id}')" title="Hapus"><i class="fas fa-trash"></i></button>
-                </div>
-            </div>
-        `;
+            </article>`;
     }).join('');
 }
+
+function renderBudgetMini() {
+    const container = document.getElementById('budgetMiniList');
+    const key = monthKey(new Date());
+    const budgets = state.budgets.filter(b => b.month === key).slice(0, 4);
+
+    if (!budgets.length) {
+        container.innerHTML = `<p class="empty__text" style="margin:0">Belum ada anggaran aktif bulan ini.</p>`;
+        return;
+    }
+
+    container.innerHTML = budgets.map(budget => {
+        const cat = categoryOf(budget.categoryId);
+        if (!cat) return '';
+        const spent = sumByCategory(budget.categoryId, key);
+        const percent = Math.min(Math.round((spent / Number(budget.amount)) * 100), 100);
+        const tone = percent >= 100 ? 'is-danger' : percent >= 75 ? 'is-warning' : 'is-safe';
+
+        return `
+            <div>
+                <div class="budget-mini__top">
+                    <span class="budget-mini__name">
+                        <span class="table__cat-dot" style="background:${esc(cat.color)}"></span>
+                        ${esc(cat.name)}
+                    </span>
+                    <span class="budget-mini__amount">${formatMoney(spent, { compact: true })} / ${formatMoney(budget.amount, { compact: true })}</span>
+                </div>
+                <div class="progress">
+                    <div class="progress__fill ${tone}" style="width:${percent}%"></div>
+                </div>
+            </div>`;
+    }).join('');
+}
+
+/* ---------- Goals -------------------------------------------------------- */
 
 function renderGoals() {
     const grid = document.getElementById('goalsGrid');
 
     if (!state.goals.length) {
-        grid.innerHTML = '<div class="empty-state"><i class="fas fa-bullseye"></i><p>Belum ada target. Tetapkan target keuangan Anda.</p></div>';
+        grid.innerHTML = emptyState('fa-bullseye', 'Belum ada target', 'Tetapkan target keuangan agar Savingmu lebih terarah.', { id: 'addGoal', label: 'Tambah Target' });
         return;
     }
 
     grid.innerHTML = state.goals.map(goal => {
-        const percent = Math.min((goal.currentAmount / goal.targetAmount) * 100, 100);
-        const remaining = goal.targetAmount - goal.currentAmount;
-        const deadline = new Date(goal.deadline);
-        const now = new Date();
-        const daysLeft = Math.ceil((deadline - now) / (1000 * 60 * 60 * 24));
+        const target = Number(goal.targetAmount);
+        const current = Number(goal.currentAmount);
+        const percent = Math.min(Math.round((current / target) * 100), 100);
+        const deadline = parseDate(goal.deadline);
+        const daysLeft = deadline ? Math.ceil((deadline - new Date()) / 86400000) : null;
+
+        const deadlineText = daysLeft === null
+            ? 'Tanpa tenggat'
+            : daysLeft < 0
+                ? `Lewat ${Math.abs(daysLeft)} hari`
+                : `${daysLeft} hari lagi`;
 
         return `
-            <div class="goal-card">
-                <div class="goal-header">
-                    <div class="goal-icon" style="background: ${goal.color}">
-                        <i class="fas ${goal.icon || 'fa-bullseye'}"></i>
-                    </div>
-                    <div>
-                        <div class="goal-name">${goal.name}</div>
-                        <div class="goal-deadline">${daysLeft > 0 ? `${daysLeft} hari lagi` : 'Tercapai!'}</div>
+            <article class="goal-card">
+                <div class="goal-card__head">
+                    <span class="icon-dot" style="background:${esc(goal.color || PALETTE[0])};width:38px;height:38px">
+                        <i class="fas ${iconClass(goal.icon)}"></i>
+                    </span>
+                    <div style="flex:1;min-width:0">
+                        <div class="goal-card__name">${esc(goal.name)}</div>
+                        <div class="goal-card__deadline">${esc(deadlineText)}</div>
                     </div>
                 </div>
-                <div class="goal-progress">
-                    <div class="goal-amounts">
-                        <span class="current">${formatCurrency(goal.currentAmount)}</span>
-                        <span>dari ${formatCurrency(goal.targetAmount)}</span>
+
+                <div class="goal-card__ring">
+                    <div class="ring" style="background:conic-gradient(${esc(goal.color || PALETTE[0])} ${percent}%, var(--surface-alt) 0)">
+                        <div class="ring__inner">${percent}%</div>
                     </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill safe" style="width: ${percent}%"></div>
+                    <div class="goal-card__amounts">
+                        <div class="goal-card__current">${formatMoney(current)}</div>
+                        <div class="goal-card__of">dari ${formatMoney(target)}</div>
+                        <div class="progress" style="margin-top:8px">
+                            <div class="progress__fill is-safe" style="width:${percent}%"></div>
+                        </div>
                     </div>
-                    <div class="goal-percent">${percent.toFixed(1)}%</div>
                 </div>
-                <div style="display: flex; gap: 8px; margin-top: 12px;">
-                    <button class="btn btn-outline btn-sm" onclick="contributeGoal('${goal.id}')"><i class="fas fa-plus"></i> Tambah</button>
-                    <button class="btn btn-outline btn-sm" onclick="editGoal('${goal.id}')"><i class="fas fa-edit"></i> Edit</button>
-                    <button class="btn btn-outline btn-sm" onclick="deleteGoal('${goal.id}')"><i class="fas fa-trash"></i></button>
+
+                <div class="goal-card__actions">
+                    <button class="btn btn-secondary btn-sm" data-contribute-goal="${esc(goal.id)}"><i class="fas fa-plus"></i> Tambah</button>
+                    <button class="btn btn-ghost btn-sm" data-edit-goal="${esc(goal.id)}"><i class="fas fa-pen"></i></button>
+                    <button class="btn btn-ghost btn-sm" data-delete-goal="${esc(goal.id)}"><i class="fas fa-trash"></i></button>
                 </div>
-            </div>
-        `;
+            </article>`;
     }).join('');
+}
+
+/* ---------- Accounts ----------------------------------------------------- */
+
+function renderAccounts() {
+    const grid = document.getElementById('accountsGrid');
+
+    if (!state.accounts.length) {
+        grid.innerHTML = emptyState('fa-building-columns', 'Belum ada akun', 'Tambahkan rekening bank, dompet tunai, atau e-wallet pertama Anda.', { id: 'addAccount', label: 'Tambah Akun' });
+        return;
+    }
+
+    grid.innerHTML = state.accounts.map(acc => {
+        const typeLabel = (ACCOUNT_TYPES.find(t => t.value === acc.type) || { label: acc.type }).label;
+        const expense = sum(state.transactions.filter(t => t.type === 'expense' && t.accountId === acc.id), t => Number(t.amount));
+        const isNegative = Number(acc.balance) < 0;
+
+        return `
+            <article class="account-card">
+                <div class="account-card__head">
+                    <span class="icon-dot" style="background:${esc(acc.color || PALETTE[0])};width:38px;height:38px">
+                        <i class="fas ${iconClass(acc.icon)}"></i>
+                    </span>
+                    <div style="flex:1;min-width:0">
+                        <div class="account-card__name">${esc(acc.name)}</div>
+                        <div class="account-card__type">${esc(typeLabel)}</div>
+                    </div>
+                </div>
+                <div>
+                    <div class="account-card__balance ${isNegative ? 'is-expense' : ''}">${formatMoney(acc.balance)}</div>
+                    <div class="stat-card__foot">${formatMoney(expense, { compact: true })} pengeluaran tercatat</div>
+                </div>
+                <div class="account-card__actions">
+                    <button class="btn btn-secondary btn-sm" data-edit-account="${esc(acc.id)}"><i class="fas fa-pen"></i> Edit</button>
+                    <button class="btn btn-ghost btn-sm" data-delete-account="${esc(acc.id)}"><i class="fas fa-trash"></i></button>
+                </div>
+            </article>`;
+    }).join('');
+}
+
+/* ---------- Categories --------------------------------------------------- */
+
+function renderCategories() {
+    renderCategoryGroup('expense', 'expenseCategories', 'expenseCatCount');
+    renderCategoryGroup('income', 'incomeCategories', 'incomeCatCount');
+}
+
+function renderCategoryGroup(type, containerId, countId) {
+    const container = document.getElementById(containerId);
+    const list = state.categories.filter(c => c.type === type);
+
+    document.getElementById(countId).textContent = `${formatNumber(list.length)} kategori`;
+
+    if (!list.length) {
+        container.innerHTML = emptyState('fa-tags', 'Belum ada kategori', 'Tambahkan label untuk mengelompokkan transaksi.');
+        return;
+    }
+
+    container.innerHTML = list.map(cat => {
+        const used = state.transactions.filter(t => t.categoryId === cat.id).length;
+        return `
+            <div class="chip-item">
+                <span class="icon-dot" style="background:${esc(cat.color || PALETTE[0])};width:30px;height:30px;font-size:11px">
+                    <i class="fas ${esc(cat.icon || 'fa-tag')}"></i>
+                </span>
+                <span class="chip-item__body">
+                    <span class="chip-item__name">${esc(cat.name)}</span>
+                    <span class="chip-item__meta">${formatNumber(used)} transaksi${cat.isDefault ? ' · bawaan' : ''}</span>
+                </span>
+                <span class="chip-item__actions">
+                    <button class="icon-btn icon-btn--sm" data-edit-category="${esc(cat.id)}" title="Edit"><i class="fas fa-pen"></i></button>
+                    <button class="icon-btn icon-btn--sm is-danger" data-delete-category="${esc(cat.id)}" title="Hapus"><i class="fas fa-trash"></i></button>
+                </span>
+            </div>`;
+    }).join('');
+}
+
+/* ---------- Reports ------------------------------------------------------ */
+
+function reportMonths() {
+    const period = document.getElementById('reportPeriod').value;
+    const now = new Date();
+
+    if (period === 'year') {
+        return Array.from({ length: 12 }, (_, i) => new Date(now.getFullYear(), i, 1));
+    }
+    const count = parseInt(period, 10);
+    return Array.from({ length: count }, (_, i) => new Date(now.getFullYear(), now.getMonth() - (count - 1 - i), 1));
 }
 
 function renderReports() {
     renderReportChart();
     renderReportSummary();
+    renderReportCategoryTable();
 }
 
 function renderReportChart() {
-    const ctx = document.getElementById('reportChart');
-    if (!ctx) return;
+    const canvas = document.getElementById('reportChart');
+    if (!canvas || typeof Chart === 'undefined') return;
+    destroyChart('report');
 
-    if (state.charts.report) state.charts.report.destroy();
-
-    const period = document.getElementById('reportPeriod').value;
+    const theme = chartTheme();
     const type = document.getElementById('reportType').value;
-    const now = new Date();
-    let months = [];
+    const months = reportMonths();
+    const labels = months.map(d => MONTH_NAMES[d.getMonth()].slice(0, 3));
 
-    if (period === 'year') {
-        for (let i = 0; i < 12; i++) {
-            months.push(new Date(now.getFullYear(), i, 1));
+    const axisScales = {
+        x: { ticks: { color: theme.muted, font: { size: 11 } }, grid: { display: false }, border: { display: false } },
+        y: {
+            beginAtZero: true,
+            ticks: { color: theme.muted, font: { size: 11 }, callback: v => formatMoney(v, { compact: true }) },
+            grid: { color: theme.border },
+            border: { display: false }
         }
-    } else {
-        const count = parseInt(period);
-        for (let i = count - 1; i >= 0; i--) {
-            months.push(new Date(now.getFullYear(), now.getMonth() - i, 1));
-        }
-    }
+    };
 
-    const labels = months.map(d => d.toLocaleDateString('id-ID', { month: 'short', year: '2-digit' }));
+    const legend = {
+        position: 'top',
+        align: 'end',
+        labels: { color: theme.text, boxWidth: 8, boxHeight: 8, usePointStyle: true, pointStyle: 'circle', padding: 16, font: { size: 12 } }
+    };
 
     if (type === 'cashflow') {
-        const incomeData = months.map(d => state.transactions.filter(t => {
-            const td = new Date(t.date);
-            return t.type === 'income' && td.getMonth() === d.getMonth() && td.getFullYear() === d.getFullYear();
-        }).reduce((s, t) => s + t.amount, 0));
+        const income = months.map(d => sumInMonth(monthKey(d), 'income'));
+        const expense = months.map(d => sumInMonth(monthKey(d), 'expense'));
 
-        const expenseData = months.map(d => state.transactions.filter(t => {
-            const td = new Date(t.date);
-            return t.type === 'expense' && td.getMonth() === d.getMonth() && td.getFullYear() === d.getFullYear();
-        }).reduce((s, t) => s + t.amount, 0));
+        document.getElementById('reportChartHint').textContent = 'Pemasukan vs pengeluaran per bulan';
 
-        state.charts.report = new Chart(ctx, {
+        state.charts.report = new Chart(canvas, {
             type: 'bar',
             data: {
                 labels,
                 datasets: [
-                    { label: 'Pemasukan', data: incomeData, backgroundColor: '#4CAF50' },
-                    { label: 'Pengeluaran', data: expenseData, backgroundColor: '#f44336' }
+                    { label: 'Pemasukan', data: income, backgroundColor: theme.income, borderRadius: 4, maxBarThickness: 22 },
+                    { label: 'Pengeluaran', data: expense, backgroundColor: theme.expense, borderRadius: 4, maxBarThickness: 22 }
                 ]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { labels: { color: getComputedStyle(document.body).getPropertyValue('--text-secondary') } } },
-                scales: {
-                    x: { ticks: { color: getComputedStyle(document.body).getPropertyValue('--text-muted') }, grid: { color: getComputedStyle(document.body).getPropertyValue('--border') } },
-                    y: { ticks: { color: getComputedStyle(document.body).getPropertyValue('--text-muted') }, grid: { color: getComputedStyle(document.body).getPropertyValue('--border') } }
-                }
-            }
+            options: baseChartOptions(theme, {
+                plugins: {
+                    legend,
+                    tooltip: { callbacks: { label: ctx => ` ${ctx.dataset.label}: ${formatMoney(ctx.parsed.y, { compact: true })}` } }
+                },
+                scales: axisScales
+            })
         });
-    } else if (type === 'category') {
-        const categoryTotals = {};
-        const targetMonth = months[months.length - 1];
+        return;
+    }
 
-        state.transactions.filter(t => {
-            const td = new Date(t.date);
-            return t.type === 'expense' && td.getMonth() === targetMonth.getMonth() && td.getFullYear() === targetMonth.getFullYear();
-        }).forEach(t => {
-            const cat = state.categories.find(c => c.id === t.categoryId);
-            if (cat) categoryTotals[cat.name] = (categoryTotals[cat.name] || 0) + t.amount;
+    if (type === 'category') {
+        const totals = {};
+        months.forEach(d => {
+            Object.entries(expenseByCategory(monthKey(d))).forEach(([name, value]) => {
+                totals[name] = (totals[name] || 0) + value;
+            });
         });
 
-        const catLabels = Object.keys(categoryTotals);
-        const catData = Object.values(categoryTotals);
-        const catColors = ['#f44336', '#E91E63', '#9C27B0', '#673AB7', '#3F51B5', '#2196F3', '#03A9F4', '#00BCD4', '#009688', '#4CAF50'];
+        const entries = Object.entries(totals).sort((a, b) => b[1] - a[1]).slice(0, 8);
+        document.getElementById('reportChartHint').textContent = 'Komposisi pengeluaran pada periode terpilih';
 
-        state.charts.report = new Chart(ctx, {
+        state.charts.report = new Chart(canvas, {
             type: 'pie',
             data: {
-                labels: catLabels.length ? catLabels : ['Belum ada data'],
-                datasets: [{ data: catData.length ? catData : [1], backgroundColor: catColors, borderWidth: 0 }]
+                labels: entries.length ? entries.map(e => e[0]) : ['Belum ada data'],
+                datasets: [{
+                    data: entries.length ? entries.map(e => e[1]) : [1],
+                    backgroundColor: entries.length ? entries.map((_, i) => PALETTE[i % PALETTE.length]) : theme.border,
+                    borderWidth: 0
+                }]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { position: 'bottom', labels: { color: getComputedStyle(document.body).getPropertyValue('--text-secondary'), padding: 15 } } }
-            }
-        });
-    } else {
-        const accountData = state.accounts.map(acc => {
-            return state.transactions.filter(t => {
-                return t.accountId === acc.id && t.type === 'expense';
-            }).reduce((s, t) => s + t.amount, 0);
-        });
-
-        state.charts.report = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels: state.accounts.map(a => a.name),
-                datasets: [{ label: 'Total Pengeluaran', data: accountData, backgroundColor: state.accounts.map(a => a.color) }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: { legend: { labels: { color: getComputedStyle(document.body).getPropertyValue('--text-secondary') } } },
-                scales: {
-                    x: { ticks: { color: getComputedStyle(document.body).getPropertyValue('--text-muted') }, grid: { color: getComputedStyle(document.body).getPropertyValue('--border') } },
-                    y: { ticks: { color: getComputedStyle(document.body).getPropertyValue('--text-muted') }, grid: { color: getComputedStyle(document.body).getPropertyValue('--border') } }
+            options: baseChartOptions(theme, {
+                plugins: {
+                    legend: { ...legend, position: 'right' },
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => {
+                                const total = ctx.dataset.data.reduce((s, v) => s + v, 0);
+                                const pct = total > 0 ? Math.round((ctx.parsed / total) * 100) : 0;
+                                return ` ${ctx.label}: ${formatMoney(ctx.parsed, { compact: true })} (${pct}%)`;
+                            }
+                        }
+                    }
                 }
-            }
+            })
         });
+        return;
     }
+
+    const data = state.accounts.map(acc => sum(
+        state.transactions.filter(t => t.type === 'expense' && t.accountId === acc.id && months.some(m => monthKey(parseDate(t.date) || new Date()) === monthKey(m))),
+        t => Number(t.amount)
+    ));
+
+    document.getElementById('reportChartHint').textContent = 'Pengeluaran per akun';
+
+    state.charts.report = new Chart(canvas, {
+        type: 'bar',
+        data: {
+            labels: state.accounts.map(a => a.name),
+            datasets: [{
+                label: 'Total Pengeluaran',
+                data,
+                backgroundColor: state.accounts.map(a => a.color || PALETTE[0]),
+                borderRadius: 4,
+                maxBarThickness: 40
+            }]
+        },
+        options: baseChartOptions(theme, {
+            indexAxis: 'y',
+            plugins: {
+                legend: { display: false },
+                tooltip: { callbacks: { label: ctx => ` ${formatMoney(ctx.parsed.x, { compact: true })}` } }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: { color: theme.muted, font: { size: 11 }, callback: v => formatMoney(v, { compact: true }) },
+                    grid: { color: theme.border },
+                    border: { display: false }
+                },
+                y: { ticks: { color: theme.muted, font: { size: 11 } }, grid: { display: false }, border: { display: false } }
+            }
+        })
+    });
+}
+
+function sumInMonth(key, type) {
+    return sum(
+        state.transactions.filter(t => t.type === type && monthKey(parseDate(t.date) || new Date()) === key),
+        t => Number(t.amount)
+    );
 }
 
 function renderReportSummary() {
-    const container = document.getElementById('reportSummary');
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
+    const months = reportMonths();
+    const keys = months.map(monthKey);
 
-    const monthlyTransactions = state.transactions.filter(t => {
-        const d = new Date(t.date);
-        return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
-    });
+    const inRange = state.transactions.filter(t => keys.includes(monthKey(parseDate(t.date) || new Date())));
+    const income = sum(inRange.filter(t => t.type === 'income'), t => Number(t.amount));
+    const expense = sum(inRange.filter(t => t.type === 'expense'), t => Number(t.amount));
+    const net = income - expense;
+    const avgExpense = months.length ? expense / months.length : 0;
+    const savingRate = income > 0 ? Math.round((net / income) * 100) : 0;
 
-    const totalIncome = monthlyTransactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
-    const totalExpense = monthlyTransactions.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-    const netCashflow = totalIncome - totalExpense;
-    const transactionCount = monthlyTransactions.length;
-    const avgPerTransaction = transactionCount > 0 ? (totalIncome + totalExpense) / transactionCount : 0;
+    const items = [
+        { label: 'Total Pemasukan', value: formatMoney(income, { compact: true }), tone: 'is-income' },
+        { label: 'Total Pengeluaran', value: formatMoney(expense, { compact: true }), tone: 'is-expense' },
+        { label: 'Arus Kas Bersih', value: formatMoney(net, { compact: true }), tone: net >= 0 ? 'is-income' : 'is-expense' },
+        { label: 'Rata-rata / Bulan', value: formatMoney(avgExpense, { compact: true }), tone: '' },
+        { label: 'Tingkat Tabung', value: `${savingRate}%`, tone: savingRate >= 0 ? 'is-income' : 'is-expense' }
+    ];
 
-    container.innerHTML = `
-        <div class="summary-item">
-            <div class="summary-label">Total Pemasukan</div>
-            <div class="summary-value income">${formatCurrency(totalIncome)}</div>
-        </div>
-        <div class="summary-item">
-            <div class="summary-label">Total Pengeluaran</div>
-            <div class="summary-value expense">${formatCurrency(totalExpense)}</div>
-        </div>
-        <div class="summary-item">
-            <div class="summary-label">Arus Kas Bersih</div>
-            <div class="summary-value net">${formatCurrency(netCashflow)}</div>
-        </div>
-        <div class="summary-item">
-            <div class="summary-label">Jumlah Transaksi</div>
-            <div class="summary-value">${transactionCount}</div>
-        </div>
-        <div class="summary-item">
-            <div class="summary-label">Rata-rata Transaksi</div>
-            <div class="summary-value">${formatCurrency(avgPerTransaction)}</div>
-        </div>
-    `;
+    document.getElementById('reportStats').innerHTML = items.map(item => `
+        <article class="stat-card">
+            <span class="stat-card__label">${esc(item.label)}</span>
+            <span class="stat-card__value ${item.tone}">${esc(item.value)}</span>
+        </article>
+    `).join('');
 }
+
+function renderReportCategoryTable() {
+    const keys = reportMonths().map(monthKey);
+    const totals = {};
+
+    state.transactions
+        .filter(t => t.type === 'expense' && keys.includes(monthKey(parseDate(t.date) || new Date())))
+        .forEach(t => {
+            const cat = categoryOf(t.categoryId);
+            if (!cat) return;
+            if (!totals[cat.id]) totals[cat.id] = { name: cat.name, color: cat.color, icon: cat.icon, total: 0, count: 0 };
+            totals[cat.id].total += Number(t.amount);
+            totals[cat.id].count += 1;
+        });
+
+    const rows = Object.values(totals).sort((a, b) => b.total - a.total);
+    const body = document.getElementById('reportCategoryBody');
+    const grandTotal = sum(rows, r => r.total);
+
+    if (!rows.length) {
+        body.innerHTML = `<tr><td colspan="4">${emptyState('fa-chart-pie', 'Belum ada data', 'Tidak ada pengeluaran pada periode yang dipilih.')}</td></tr>`;
+        return;
+    }
+
+    body.innerHTML = rows.map(row => {
+        const pct = grandTotal > 0 ? Math.round((row.total / grandTotal) * 100) : 0;
+        return `
+            <tr>
+                <td>
+                    <span class="table__cat">
+                        <span class="table__cat-dot" style="background:${esc(row.color)}"></span>
+                        ${esc(row.name)}
+                    </span>
+                </td>
+                <td class="is-right table__muted">${formatNumber(row.count)}</td>
+                <td class="is-right table__cell--amount">${formatMoney(row.total)}</td>
+                <td>
+                    <div class="share-cell">
+                        <span class="table__muted" style="font-size:12px;width:34px;text-align:right">${pct}%</span>
+                        <span class="share-cell__track">
+                            <span class="share-cell__fill" style="width:${pct}%;background:${esc(row.color)}"></span>
+                        </span>
+                    </div>
+                </td>
+            </tr>`;
+    }).join('');
+}
+
+/* ---------- Settings ----------------------------------------------------- */
 
 function renderSettings() {
     document.getElementById('currencySelect').value = state.settings.currency;
     document.getElementById('dateFormatSelect').value = state.settings.dateFormat;
     document.getElementById('languageSelect').value = state.settings.language;
+    document.getElementById('compactNumbers').checked = !!state.settings.compactNumbers;
+    document.getElementById('apiBaseInput').value = localStorage.getItem('financeApp_apiBase') || '';
+    document.getElementById('aboutCount').textContent = formatNumber(state.transactions.length);
+    updateConnectionBadge();
 }
 
-function openTransactionModal(transaction = null) {
-    const isEdit = !!transaction;
-    const type = transaction?.type || 'expense';
-    const amount = transaction?.amount || '';
-    const note = transaction?.note || '';
-    const date = transaction?.date || formatDateISO(new Date());
-    const accountId = transaction?.accountId || (state.accounts[0]?.id || '');
-    const toAccountId = transaction?.toAccountId || '';
-    const categoryId = transaction?.categoryId || '';
+/* ---------- Transaction modal -------------------------------------------- */
 
-    const accountOptions = state.accounts.map(a => `<option value="${a.id}" ${a.id === accountId ? 'selected' : ''}>${a.name}</option>`).join('');
-    const toAccountOptions = state.accounts.map(a => `<option value="${a.id}" ${a.id === toAccountId ? 'selected' : ''}>${a.name}</option>`).join('');
-    const categoryOptions = state.categories.filter(c => c.type === (type === 'income' ? 'income' : 'expense')).map(c => `<option value="${c.id}" ${c.id === categoryId ? 'selected' : ''}>${c.name}</option>`).join('');
+function transactionFormHTML(tx = null) {
+    const type = tx ? tx.type : 'expense';
+    const accounts = state.accounts;
+    const accountOptions = accounts.map(a => `<option value="${esc(a.id)}" ${tx && tx.accountId === a.id ? 'selected' : ''}>${esc(a.name)}</option>`).join('');
+    const targetOptions = accounts.map(a => `<option value="${esc(a.id)}" ${tx && tx.toAccountId === a.id ? 'selected' : ''}>${esc(a.name)}</option>`).join('');
 
-    const bodyHTML = `
-        <div class="form-group">
-            <label>Tipe Transaksi</label>
-            <select id="trxType" onchange="updateTransactionForm()">
-                <option value="expense" ${type === 'expense' ? 'selected' : ''}>Pengeluaran</option>
-                <option value="income" ${type === 'income' ? 'selected' : ''}>Pemasukan</option>
-                <option value="transfer" ${type === 'transfer' ? 'selected' : ''}>Transfer</option>
-            </select>
+    return `
+        <div class="amount-input-wrap">
+            <span class="amount-input-wrap__symbol">${CURRENCY_SYMBOLS[state.settings.currency] || 'Rp'}</span>
+            <input type="number" class="input amount-input" id="trxAmount" value="${tx ? Number(tx.amount) : ''}" placeholder="0" min="0" step="1000" inputmode="numeric">
         </div>
-        <div class="form-group">
-            <label>Jumlah</label>
-            <input type="number" id="trxAmount" value="${amount}" placeholder="0" min="0" step="1000">
+
+        <div class="type-toggle" id="trxTypeToggle">
+            <button class="type-toggle__item ${type === 'expense' ? 'is-active' : ''}" data-type="expense">Pengeluaran</button>
+            <button class="type-toggle__item ${type === 'income' ? 'is-active' : ''}" data-type="income">Pemasukan</button>
+            <button class="type-toggle__item ${type === 'transfer' ? 'is-active' : ''}" data-type="transfer">Transfer</button>
         </div>
-        <div class="form-group" id="categoryGroup">
-            <label>Kategori</label>
-            <select id="trxCategory">${categoryOptions}</select>
+
+        <div class="field" id="trxCategoryField">
+            <label class="field__label" for="trxCategory">Kategori</label>
+            <select class="select" id="trxCategory"></select>
         </div>
-        <div class="form-row">
-            <div class="form-group">
-                <label>Dari Akun</label>
-                <select id="trxAccount">${accountOptions}</select>
+
+        <div class="form-grid">
+            <div class="field" id="trxAccountField">
+                <label class="field__label" for="trxAccount" id="trxAccountLabel">Dari Akun</label>
+                <select class="select" id="trxAccount">${accountOptions || '<option value="">Belum ada akun</option>'}</select>
             </div>
-            <div class="form-group" id="toAccountGroup" style="display: none;">
-                <label>Ke Akun</label>
-                <select id="trxToAccount">${toAccountOptions}</select>
+            <div class="field" id="trxTargetField" hidden>
+                <label class="field__label" for="trxTarget">Ke Akun</label>
+                <select class="select" id="trxTarget">${targetOptions || '<option value="">Belum ada akun</option>'}</select>
             </div>
         </div>
-        <div class="form-group">
-            <label>Tanggal</label>
-            <input type="date" id="trxDate" value="${date}">
-        </div>
-        <div class="form-group">
-            <label>Catatan</label>
-            <input type="text" id="trxNote" value="${note}" placeholder="Tambahkan catatan...">
-        </div>
-    `;
 
-    const footerButtons = [
-        { text: 'Batal', class: 'btn-outline', onClick: closeModal },
-        { text: isEdit ? 'Simpan' : 'Tambah', class: 'btn-primary', onClick: () => isEdit ? saveTransactionEdit(transaction.id) : saveTransaction() }
-    ];
+        <div class="field">
+            <label class="field__label" for="trxDate">Tanggal</label>
+            <input type="date" class="input" id="trxDate" value="${esc(tx ? tx.date : toISODate(new Date()))}">
+        </div>
 
-    openModal(isEdit ? 'Edit Transaksi' : 'Tambah Transaksi', bodyHTML, footerButtons);
-    updateTransactionForm();
+        <div class="field">
+            <label class="field__label" for="trxNote">Catatan</label>
+            <input type="text" class="input" id="trxNote" value="${esc(tx ? tx.note : '')}" placeholder="Contoh: Makan siang">
+        </div>`;
 }
 
-function updateTransactionForm() {
-    const type = document.getElementById('trxType').value;
-    const categoryGroup = document.getElementById('categoryGroup');
-    const toAccountGroup = document.getElementById('toAccountGroup');
-    const categorySelect = document.getElementById('trxCategory');
-
-    if (type === 'transfer') {
-        categoryGroup.style.display = 'none';
-        toAccountGroup.style.display = 'block';
-    } else {
-        categoryGroup.style.display = 'block';
-        toAccountGroup.style.display = 'none';
-        const categories = state.categories.filter(c => c.type === type);
-        categorySelect.innerHTML = categories.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
-    }
+function currentTrxType() {
+    const active = document.querySelector('#trxTypeToggle .is-active');
+    return active ? active.dataset.type : 'expense';
 }
 
-function saveTransaction() {
-    const type = document.getElementById('trxType').value;
-    const amount = parseFloat(document.getElementById('trxAmount').value);
-    const date = document.getElementById('trxDate').value;
-    const note = document.getElementById('trxNote').value;
-    const accountId = document.getElementById('trxAccount').value;
+function refreshTrxForm(type) {
+    const categories = state.categories.filter(c => c.type === (type === 'income' ? 'income' : 'expense'));
+    const select = document.getElementById('trxCategory');
+    const previous = select.value;
 
-    if (!amount || amount <= 0) { showToast('Jumlah harus lebih dari 0', 'error'); return; }
-    if (!accountId) { showToast('Pilih akun terlebih dahulu', 'error'); return; }
+    select.innerHTML = categories
+        .map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`)
+        .join('');
 
-    const transaction = {
-        id: generateId(),
-        type,
-        amount,
-        categoryId: type !== 'transfer' ? document.getElementById('trxCategory').value : null,
-        accountId,
-        toAccountId: type === 'transfer' ? document.getElementById('trxToAccount').value : null,
-        date,
-        note,
-        isRecurring: false,
-        recurringId: null,
-        createdAt: new Date().toISOString()
-    };
+    if (categories.some(c => c.id === previous)) select.value = previous;
 
-    if (type === 'transfer' && !transaction.toAccountId) {
-        showToast('Pilih akun tujuan transfer', 'error');
+    document.getElementById('trxCategoryField').hidden = type === 'transfer';
+    document.getElementById('trxTargetField').hidden = type !== 'transfer';
+    document.getElementById('trxAccountLabel').textContent = type === 'income' ? 'Ke Akun' : 'Dari Akun';
+}
+
+function openTransactionModal(tx = null) {
+    if (!state.accounts.length) {
+        toast('Tambahkan akun terlebih dahulu', 'warning');
+        navigateTo('accounts');
+        openAccountModal();
         return;
     }
 
-    state.transactions.push(transaction);
-    updateAccountBalances();
-    saveState();
-    closeModal();
-    renderPage(state.currentPage);
-    showToast('Transaksi berhasil ditambahkan');
-}
-
-function saveTransactionEdit(id) {
-    const transaction = state.transactions.find(t => t.id === id);
-    if (!transaction) return;
-
-    const type = document.getElementById('trxType').value;
-    const amount = parseFloat(document.getElementById('trxAmount').value);
-    const date = document.getElementById('trxDate').value;
-    const note = document.getElementById('trxNote').value;
-    const accountId = document.getElementById('trxAccount').value;
-
-    if (!amount || amount <= 0) { showToast('Jumlah harus lebih dari 0', 'error'); return; }
-
-    transaction.type = type;
-    transaction.amount = amount;
-    transaction.date = date;
-    transaction.note = note;
-    transaction.accountId = accountId;
-    transaction.categoryId = type !== 'transfer' ? document.getElementById('trxCategory').value : null;
-    transaction.toAccountId = type === 'transfer' ? document.getElementById('trxToAccount').value : null;
-
-    updateAccountBalances();
-    saveState();
-    closeModal();
-    renderPage(state.currentPage);
-    showToast('Transaksi berhasil diperbarui');
-}
-
-function editTransaction(id) {
-    const transaction = state.transactions.find(t => t.id === id);
-    if (transaction) openTransactionModal(transaction);
-}
-
-function deleteTransaction(id) {
-    if (!confirm('Hapus transaksi ini?')) return;
-    state.transactions = state.transactions.filter(t => t.id !== id);
-    updateAccountBalances();
-    saveState();
-    renderPage(state.currentPage);
-    showToast('Transaksi dihapus');
-}
-
-function updateAccountBalances() {
-    state.accounts.forEach(acc => { acc.balance = 0; });
-
-    state.transactions.forEach(t => {
-        if (t.type === 'income') {
-            const acc = state.accounts.find(a => a.id === t.accountId);
-            if (acc) acc.balance += t.amount;
-        } else if (t.type === 'expense') {
-            const acc = state.accounts.find(a => a.id === t.accountId);
-            if (acc) acc.balance -= t.amount;
-        } else if (t.type === 'transfer') {
-            const fromAcc = state.accounts.find(a => a.id === t.accountId);
-            const toAcc = state.accounts.find(a => a.id === t.toAccountId);
-            if (fromAcc) fromAcc.balance -= t.amount;
-            if (toAcc) toAcc.balance += t.amount;
+    openModal(tx ? 'Edit Transaksi' : 'Transaksi Baru', transactionFormHTML(tx), [
+        { text: 'Batal' },
+        {
+            text: tx ? 'Simpan' : 'Tambah',
+            class: 'btn-primary',
+            icon: 'fa-check',
+            keepOpen: true,
+            onClick: async () => {
+                const payload = collectTransactionPayload();
+                if (!payload) return false;
+                try {
+                    if (tx) await updateRecord('transactions', tx.id, payload);
+                    else await createRecord('transactions', payload);
+                    closeModal();
+                    toast(tx ? 'Transaksi diperbarui' : 'Transaksi ditambahkan');
+                } catch (err) {
+                    toast(err.message, 'error');
+                }
+            }
         }
-    });
+    ]);
+
+    refreshTrxForm(tx ? tx.type : 'expense');
+}
+
+function collectTransactionPayload() {
+    const type = currentTrxType();
+    const amount = parseFloat(document.getElementById('trxAmount').value);
+    const accountId = document.getElementById('trxAccount').value;
+    const date = document.getElementById('trxDate').value;
+    const note = document.getElementById('trxNote').value.trim();
+
+    if (!amount || amount <= 0) { toast('Jumlah harus lebih dari 0', 'error'); return null; }
+    if (!accountId) { toast('Pilih akun terlebih dahulu', 'error'); return null; }
+    if (!date) { toast('Pilih tanggal transaksi', 'error'); return null; }
+
+    const categoryId = type === 'transfer' ? null : document.getElementById('trxCategory').value;
+    const toAccountId = type === 'transfer' ? document.getElementById('trxTarget').value : null;
+
+    if (type === 'transfer') {
+        if (!toAccountId) { toast('Pilih akun tujuan transfer', 'error'); return null; }
+        if (toAccountId === accountId) { toast('Akun tujuan harus berbeda', 'error'); return null; }
+    }
+
+    return { type, amount, categoryId, accountId, toAccountId, date, note, isRecurring: false, recurringId: null };
+}
+
+/* ---------- Account modal ------------------------------------------------ */
+
+function accountFormHTML(account = null) {
+    return `
+        <div class="field">
+            <label class="field__label" for="accName">Nama Akun</label>
+            <input type="text" class="input" id="accName" value="${esc(account ? account.name : '')}" placeholder="Contoh: BCA, GoPay, Dompet">
+        </div>
+        <div class="field">
+            <label class="field__label" for="accType">Tipe</label>
+            <select class="select" id="accType">
+                ${ACCOUNT_TYPES.map(t => `<option value="${t.value}" ${account && account.type === t.value ? 'selected' : ''}>${t.label}</option>`).join('')}
+            </select>
+        </div>
+        ${account ? '' : `
+        <div class="field">
+            <label class="field__label" for="accBalance">Saldo Awal</label>
+            <input type="number" class="input" id="accBalance" placeholder="0" min="0" step="1000">
+        </div>`}
+        <div class="field">
+            <label class="field__label" for="accColor">Warna</label>
+            <input type="color" class="color-input" id="accColor" value="${esc(account ? account.color : PALETTE[0])}">
+        </div>
+        <div class="field">
+            <label class="field__label">Ikon</label>
+            <div class="icon-picker" id="accIconPicker">
+                ${ACCOUNT_ICONS.map(ic => `<button class="icon-picker__item ${account && account.icon === ic ? 'is-active' : ''}" data-icon="${ic}"><i class="fas ${ic}"></i></button>`).join('')}
+            </div>
+        </div>
+        ${account ? `<p class="field__hint">Saldo dihitung dari saldo awal ditambah seluruh transaksi akun ini.</p>` : ''}`;
 }
 
 function openAccountModal(account = null) {
-    const isEdit = !!account;
-    const name = account?.name || '';
-    const type = account?.type || 'bank';
-    const balance = account?.balance || '';
-    const color = account?.color || '#2196F3';
-    const icon = account?.icon || 'fa-university';
+    openModal(account ? 'Edit Akun' : 'Tambah Akun', accountFormHTML(account), [
+        { text: 'Batal' },
+        {
+            text: account ? 'Simpan' : 'Tambah',
+            class: 'btn-primary',
+            icon: 'fa-check',
+            keepOpen: true,
+            onClick: async () => {
+                const name = document.getElementById('accName').value.trim();
+                if (!name) { toast('Nama akun wajib diisi', 'error'); return false; }
 
-    const bodyHTML = `
-        <div class="form-group">
-            <label>Nama Akun</label>
-            <input type="text" id="accName" value="${name}" placeholder="Contoh: BCA, GoPay, Tunai">
-        </div>
-        <div class="form-group">
-            <label>Tipe Akun</label>
-            <select id="accType">
-                <option value="bank" ${type === 'bank' ? 'selected' : ''}>Bank</option>
-                <option value="cash" ${type === 'cash' ? 'selected' : ''}>Tunai</option>
-                <option value="ewallet" ${type === 'ewallet' ? 'selected' : ''}>E-Wallet</option>
-                <option value="credit" ${type === 'credit' ? 'selected' : ''}>Kartu Kredit</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label>Saldo Awal</label>
-            <input type="number" id="accBalance" value="${balance}" placeholder="0" min="0" step="1000">
-        </div>
-        <div class="form-group">
-            <label>Warna</label>
-            <input type="color" id="accColor" value="${color}" style="width: 100%; height: 40px; border: none; border-radius: 8px; cursor: pointer;">
-        </div>
-        <div class="form-group">
-            <label>Icon</label>
-            <select id="accIcon">
-                <option value="fa-university" ${icon === 'fa-university' ? 'selected' : ''}><i class="fas fa-university"></i> Bank</option>
-                <option value="fa-money-bill-wave" ${icon === 'fa-money-bill-wave' ? 'selected' : ''}>Tunai</option>
-                <option value="fa-mobile-alt" ${icon === 'fa-mobile-alt' ? 'selected' : ''}>E-Wallet</option>
-                <option value="fa-credit-card" ${icon === 'fa-credit-card' ? 'selected' : ''}>Kartu Kredit</option>
-                <option value="fa-wallet" ${icon === 'fa-wallet' ? 'selected' : ''}>Dompet</option>
-                <option value="fa-piggy-bank" ${icon === 'fa-piggy-bank' ? 'selected' : ''}>Celengan</option>
-            </select>
-        </div>
-    `;
+                const payload = {
+                    name,
+                    type: document.getElementById('accType').value,
+                    color: document.getElementById('accColor').value,
+                    icon: selectedIcon('accIconPicker') || 'fa-wallet',
+                    currency: state.settings.currency
+                };
 
-    const footerButtons = [
-        { text: 'Batal', class: 'btn-outline', onClick: closeModal },
-        { text: isEdit ? 'Simpan' : 'Tambah', class: 'btn-primary', onClick: () => isEdit ? saveAccountEdit(account.id) : saveAccount() }
-    ];
+                if (account) {
+                    payload.openingBalance = Number(account.openingBalance) || 0;
+                } else {
+                    payload.openingBalance = Math.max(parseFloat(document.getElementById('accBalance').value) || 0, 0);
+                }
 
-    openModal(isEdit ? 'Edit Akun' : 'Tambah Akun', bodyHTML, footerButtons);
+                try {
+                    if (account) await updateRecord('accounts', account.id, payload);
+                    else await createRecord('accounts', payload);
+                    closeModal();
+                    toast(account ? 'Akun diperbarui' : 'Akun ditambahkan');
+                } catch (err) {
+                    toast(err.message, 'error');
+                }
+            }
+        }
+    ]);
 }
 
-function saveAccount() {
-    const name = document.getElementById('accName').value.trim();
-    const type = document.getElementById('accType').value;
-    const balance = parseFloat(document.getElementById('accBalance').value) || 0;
-    const color = document.getElementById('accColor').value;
-    const icon = document.getElementById('accIcon').value;
-
-    if (!name) { showToast('Nama akun wajib diisi', 'error'); return; }
-
-    state.accounts.push({
-        id: generateId(),
-        name,
-        type,
-        balance,
-        currency: state.settings.currency,
-        color,
-        icon,
-        createdAt: new Date().toISOString()
-    });
-
-    saveState();
-    closeModal();
-    renderPage(state.currentPage);
-    showToast('Akun berhasil ditambahkan');
+function selectedIcon(pickerId) {
+    const active = document.querySelector(`#${pickerId} .is-active`);
+    return active ? active.dataset.icon : null;
 }
 
-function saveAccountEdit(id) {
-    const account = state.accounts.find(a => a.id === id);
-    if (!account) return;
+/* ---------- Category modal ----------------------------------------------- */
 
-    account.name = document.getElementById('accName').value.trim();
-    account.type = document.getElementById('accType').value;
-    account.color = document.getElementById('accColor').value;
-    account.icon = document.getElementById('accIcon').value;
+function categoryFormHTML(category = null) {
+    const type = category ? category.type : 'expense';
+    const color = category ? category.color : PALETTE[4];
+    const icon = category ? category.icon : 'fa-tag';
 
-    saveState();
-    closeModal();
-    renderPage(state.currentPage);
-    showToast('Akun berhasil diperbarui');
-}
-
-function editAccount(id) {
-    const account = state.accounts.find(a => a.id === id);
-    if (account) openAccountModal(account);
-}
-
-function deleteAccount(id) {
-    if (!confirm('Hapus akun ini? Terkait transaksi tidak akan dihapus.')) return;
-    state.accounts = state.accounts.filter(a => a.id !== id);
-    saveState();
-    renderPage(state.currentPage);
-    showToast('Akun dihapus');
-}
-
-function openBudgetModal() {
-    const now = new Date();
-    const currentMonthKey = getMonthKey(now);
-    const expenseCategories = state.categories.filter(c => c.type === 'expense');
-
-    const bodyHTML = `
-        <div class="form-group">
-            <label>Kategori</label>
-            <select id="budgetCategory">
-                ${expenseCategories.map(c => `<option value="${c.id}">${c.name}</option>`).join('')}
-            </select>
+    return `
+        <div class="field">
+            <label class="field__label" for="catName">Nama Kategori</label>
+            <input type="text" class="input" id="catName" value="${esc(category ? category.name : '')}" placeholder="Contoh: Makanan">
         </div>
-        <div class="form-group">
-            <label>Anggaran Bulanan</label>
-            <input type="number" id="budgetAmount" placeholder="0" min="0" step="10000">
+        <div class="field">
+            <label class="field__label">Tipe</label>
+            <div class="type-toggle" id="catTypeToggle">
+                <button class="type-toggle__item ${type === 'expense' ? 'is-active' : ''}" data-type="expense">Pengeluaran</button>
+                <button class="type-toggle__item ${type === 'income' ? 'is-active' : ''}" data-type="income">Pemasukan</button>
+            </div>
         </div>
-    `;
-
-    const footerButtons = [
-        { text: 'Batal', class: 'btn-outline', onClick: closeModal },
-        { text: 'Tambah', class: 'btn-primary', onClick: saveBudget }
-    ];
-
-    openModal('Tambah Anggaran', bodyHTML, footerButtons);
+        <div class="field">
+            <label class="field__label" for="catColor">Warna</label>
+            <input type="color" class="color-input" id="catColor" value="${esc(color)}">
+        </div>
+        <div class="field">
+            <label class="field__label">Ikon</label>
+            <div class="icon-picker" id="catIconPicker">
+                ${[...new Set(CATEGORY_ICONS)].map(ic => `<button class="icon-picker__item ${icon === ic ? 'is-active' : ''}" data-icon="${ic}"><i class="fas ${ic}"></i></button>`).join('')}
+            </div>
+        </div>`;
 }
 
-function saveBudget() {
-    const categoryId = document.getElementById('budgetCategory').value;
-    const amount = parseFloat(document.getElementById('budgetAmount').value);
-    const now = new Date();
-    const monthKey = getMonthKey(now);
+function openCategoryModal(category = null) {
+    openModal(category ? 'Edit Kategori' : 'Tambah Kategori', categoryFormHTML(category), [
+        { text: 'Batal' },
+        {
+            text: category ? 'Simpan' : 'Tambah',
+            class: 'btn-primary',
+            icon: 'fa-check',
+            keepOpen: true,
+            onClick: async () => {
+                const name = document.getElementById('catName').value.trim();
+                if (!name) { toast('Nama kategori wajib diisi', 'error'); return false; }
 
-    if (!amount || amount <= 0) { showToast('Jumlah anggaran harus lebih dari 0', 'error'); return; }
+                const type = (document.querySelector('#catTypeToggle .is-active') || { dataset: { type: 'expense' } }).dataset.type;
+                const payload = {
+                    name,
+                    type,
+                    color: document.getElementById('catColor').value,
+                    icon: selectedIcon('catIconPicker') || 'fa-tag',
+                    isDefault: category ? !!category.isDefault : false
+                };
 
-    const existing = state.budgets.find(b => b.categoryId === categoryId && b.month === monthKey);
-    if (existing) {
-        existing.amount = amount;
-    } else {
-        state.budgets.push({
-            id: generateId(),
-            categoryId,
-            amount,
-            period: 'monthly',
-            month: monthKey,
-            createdAt: new Date().toISOString()
-        });
+                try {
+                    if (category) await updateRecord('categories', category.id, payload);
+                    else await createRecord('categories', payload);
+                    closeModal();
+                    toast(category ? 'Kategori diperbarui' : 'Kategori ditambahkan');
+                } catch (err) {
+                    toast(err.message, 'error');
+                }
+            }
+        }
+    ]);
+}
+
+/* ---------- Budget modal ------------------------------------------------- */
+
+function budgetFormHTML(budget = null) {
+    const key = monthKey(new Date());
+    const categories = state.categories.filter(c => c.type === 'expense');
+
+    if (!categories.length) {
+        return `<p class="about-text">Tambahkan kategori pengeluaran terlebih dahulu.</p>`;
     }
 
-    saveState();
-    closeModal();
-    renderPage(state.currentPage);
-    showToast('Anggaran berhasil disimpan');
+    return `
+        <div class="field">
+            <label class="field__label" for="budgetCategory">Kategori</label>
+            <select class="select" id="budgetCategory">
+                ${categories.map(c => `<option value="${esc(c.id)}" ${budget && budget.categoryId === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}
+            </select>
+        </div>
+        <div class="field">
+            <label class="field__label" for="budgetAmount">Batas Anggaran</label>
+            <input type="number" class="input" id="budgetAmount" value="${budget ? Number(budget.amount) : ''}" placeholder="500000" min="0" step="10000">
+        </div>
+        <p class="field__hint">Anggaran berlaku untuk bulan berjalan (${formatMonthShort(key)}).</p>`;
 }
 
-function deleteBudget(id) {
-    if (!confirm('Hapus anggaran ini?')) return;
-    state.budgets = state.budgets.filter(b => b.id !== id);
-    saveState();
-    renderPage(state.currentPage);
-    showToast('Anggaran dihapus');
+function openBudgetModal(budget = null) {
+    if (!state.categories.filter(c => c.type === 'expense').length) {
+        toast('Tambahkan kategori pengeluaran dulu', 'warning');
+        navigateTo('categories');
+        return;
+    }
+
+    openModal(budget ? 'Edit Anggaran' : 'Tambah Anggaran', budgetFormHTML(budget), [
+        { text: 'Batal' },
+        {
+            text: budget ? 'Simpan' : 'Tambah',
+            class: 'btn-primary',
+            icon: 'fa-check',
+            keepOpen: true,
+            onClick: async () => {
+                const amount = parseFloat(document.getElementById('budgetAmount').value);
+                if (!amount || amount <= 0) { toast('Jumlah anggaran harus lebih dari 0', 'error'); return false; }
+
+                const categoryId = document.getElementById('budgetCategory').value;
+                const key = monthKey(new Date());
+                const existing = state.budgets.find(b => b.categoryId === categoryId && b.month === key && (!budget || b.id !== budget.id));
+
+                const payload = { categoryId, amount, period: 'monthly', month: key };
+
+                try {
+                    if (budget) await updateRecord('budgets', budget.id, payload);
+                    else if (existing) await updateRecord('budgets', existing.id, { amount });
+                    else await createRecord('budgets', payload);
+                    closeModal();
+                    toast(existing && !budget ? 'Anggaran diperbarui' : budget ? 'Anggaran diperbarui' : 'Anggaran ditambahkan');
+                } catch (err) {
+                    toast(err.message, 'error');
+                }
+            }
+        }
+    ]);
+}
+
+/* ---------- Goal modal --------------------------------------------------- */
+
+function goalFormHTML(goal = null) {
+    return `
+        <div class="field">
+            <label class="field__label" for="goalName">Nama Target</label>
+            <input type="text" class="input" id="goalName" value="${esc(goal ? goal.name : '')}" placeholder="Contoh: Laptop Baru">
+        </div>
+        <div class="form-grid">
+            <div class="field">
+                <label class="field__label" for="goalTarget">Target Jumlah</label>
+                <input type="number" class="input" id="goalTarget" value="${goal ? Number(goal.targetAmount) : ''}" placeholder="15000000" min="0" step="10000">
+            </div>
+            <div class="field">
+                <label class="field__label" for="goalCurrent">Terkumpul</label>
+                <input type="number" class="input" id="goalCurrent" value="${goal ? Number(goal.currentAmount) : ''}" placeholder="0" min="0" step="10000">
+            </div>
+        </div>
+        <div class="field">
+            <label class="field__label" for="goalDeadline">Tenggat</label>
+            <input type="date" class="input" id="goalDeadline" value="${esc(goal ? goal.deadline : '')}">
+        </div>
+        <div class="form-grid">
+            <div class="field">
+                <label class="field__label" for="goalColor">Warna</label>
+                <input type="color" class="color-input" id="goalColor" value="${esc(goal ? goal.color : PALETTE[0])}">
+            </div>
+            <div class="field">
+                <label class="field__label">Ikon</label>
+                <div class="icon-picker" id="goalIconPicker" style="grid-template-columns:repeat(5,1fr)">
+                    ${['fa-bullseye', 'fa-laptop', 'fa-car', 'fa-house', 'fa-plane', 'fa-graduation-cap', 'fa-shield-alt', 'fa-ring', 'fa-piggy-bank', 'fa-mobile-alt']
+                        .map(ic => `<button class="icon-picker__item ${goal && goal.icon === ic ? 'is-active' : ''}" data-icon="${ic}"><i class="fas ${ic}"></i></button>`).join('')}
+                </div>
+            </div>
+        </div>`;
 }
 
 function openGoalModal(goal = null) {
-    const isEdit = !!goal;
-    const name = goal?.name || '';
-    const targetAmount = goal?.targetAmount || '';
-    const currentAmount = goal?.currentAmount || '';
-    const deadline = goal?.deadline || '';
-    const color = goal?.color || '#2196F3';
-    const icon = goal?.icon || 'fa-bullseye';
+    openModal(goal ? 'Edit Target' : 'Tambah Target', goalFormHTML(goal), [
+        { text: 'Batal' },
+        {
+            text: goal ? 'Simpan' : 'Tambah',
+            class: 'btn-primary',
+            icon: 'fa-check',
+            keepOpen: true,
+            onClick: async () => {
+                const name = document.getElementById('goalName').value.trim();
+                const targetAmount = parseFloat(document.getElementById('goalTarget').value);
+                const currentAmount = parseFloat(document.getElementById('goalCurrent').value) || 0;
 
-    const bodyHTML = `
-        <div class="form-group">
-            <label>Nama Target</label>
-            <input type="text" id="goalName" value="${name}" placeholder="Contoh: Laptop Baru, Dana Darurat">
-        </div>
-        <div class="form-group">
-            <label>Target Jumlah</label>
-            <input type="number" id="goalTarget" value="${targetAmount}" placeholder="0" min="0" step="10000">
-        </div>
-        <div class="form-group">
-            <label>Jumlah Saat Ini</label>
-            <input type="number" id="goalCurrent" value="${currentAmount}" placeholder="0" min="0" step="10000">
-        </div>
-        <div class="form-group">
-            <label>Tanggal Target</label>
-            <input type="date" id="goalDeadline" value="${deadline}">
-        </div>
-        <div class="form-group">
-            <label>Warna</label>
-            <input type="color" id="goalColor" value="${color}" style="width: 100%; height: 40px; border: none; border-radius: 8px; cursor: pointer;">
-        </div>
-        <div class="form-group">
-            <label>Icon</label>
-            <select id="goalIcon">
-                <option value="fa-bullseye" ${icon === 'fa-bullseye' ? 'selected' : ''}>Target</option>
-                <option value="fa-laptop" ${icon === 'fa-laptop' ? 'selected' : ''}>Laptop</option>
-                <option value="fa-car" ${icon === 'fa-car' ? 'selected' : ''}>Mobil</option>
-                <option value="fa-home" ${icon === 'fa-home' ? 'selected' : ''}>Rumah</option>
-                <option value="fa-plane" ${icon === 'fa-plane' ? 'selected' : ''}>Liburan</option>
-                <option value="fa-graduation-cap" ${icon === 'fa-graduation-cap' ? 'selected' : ''}>Pendidikan</option>
-                <option value="fa-shield-alt" ${icon === 'fa-shield-alt' ? 'selected' : ''}>Dana Darurat</option>
-                <option value="fa-ring" ${icon === 'fa-ring' ? 'selected' : ''}>Pernikahan</option>
-            </select>
-        </div>
-    `;
+                if (!name) { toast('Nama target wajib diisi', 'error'); return false; }
+                if (!targetAmount || targetAmount <= 0) { toast('Target jumlah harus lebih dari 0', 'error'); return false; }
 
-    const footerButtons = [
-        { text: 'Batal', class: 'btn-outline', onClick: closeModal },
-        { text: isEdit ? 'Simpan' : 'Tambah', class: 'btn-primary', onClick: () => isEdit ? saveGoalEdit(goal.id) : saveGoal() }
-    ];
+                const payload = {
+                    name,
+                    targetAmount,
+                    currentAmount: Math.min(currentAmount, targetAmount),
+                    deadline: document.getElementById('goalDeadline').value,
+                    color: document.getElementById('goalColor').value,
+                    icon: selectedIcon('goalIconPicker') || 'fa-bullseye'
+                };
 
-    openModal(isEdit ? 'Edit Target' : 'Tambah Target', bodyHTML, footerButtons);
+                try {
+                    if (goal) await updateRecord('goals', goal.id, payload);
+                    else await createRecord('goals', payload);
+                    closeModal();
+                    toast(goal ? 'Target diperbarui' : 'Target ditambahkan');
+                } catch (err) {
+                    toast(err.message, 'error');
+                }
+            }
+        }
+    ]);
 }
 
-function saveGoal() {
-    const name = document.getElementById('goalName').value.trim();
-    const targetAmount = parseFloat(document.getElementById('goalTarget').value);
-    const currentAmount = parseFloat(document.getElementById('goalCurrent').value) || 0;
-    const deadline = document.getElementById('goalDeadline').value;
-    const color = document.getElementById('goalColor').value;
-    const icon = document.getElementById('goalIcon').value;
-
-    if (!name) { showToast('Nama target wajib diisi', 'error'); return; }
-    if (!targetAmount || targetAmount <= 0) { showToast('Target jumlah harus lebih dari 0', 'error'); return; }
-
-    state.goals.push({
-        id: generateId(),
-        name,
-        targetAmount,
-        currentAmount,
-        deadline,
-        color,
-        icon,
-        createdAt: new Date().toISOString()
-    });
-
-    saveState();
-    closeModal();
-    renderPage(state.currentPage);
-    showToast('Target berhasil ditambahkan');
-}
-
-function saveGoalEdit(id) {
-    const goal = state.goals.find(g => g.id === id);
+function openContributeModal(goalId) {
+    const goal = state.goals.find(g => g.id === goalId);
     if (!goal) return;
 
-    goal.name = document.getElementById('goalName').value.trim();
-    goal.targetAmount = parseFloat(document.getElementById('goalTarget').value);
-    goal.currentAmount = parseFloat(document.getElementById('goalCurrent').value) || 0;
-    goal.deadline = document.getElementById('goalDeadline').value;
-    goal.color = document.getElementById('goalColor').value;
-    goal.icon = document.getElementById('goalIcon').value;
+    const remaining = Math.max(Number(goal.targetAmount) - Number(goal.currentAmount), 0);
 
-    saveState();
-    closeModal();
-    renderPage(state.currentPage);
-    showToast('Target berhasil diperbarui');
-}
-
-function editGoal(id) {
-    const goal = state.goals.find(g => g.id === id);
-    if (goal) openGoalModal(goal);
-}
-
-function deleteGoal(id) {
-    if (!confirm('Hapus target ini?')) return;
-    state.goals = state.goals.filter(g => g.id !== id);
-    saveState();
-    renderPage(state.currentPage);
-    showToast('Target dihapus');
-}
-
-function contributeGoal(id) {
-    const goal = state.goals.find(g => g.id === id);
-    if (!goal) return;
-
-    const remaining = goal.targetAmount - goal.currentAmount;
-
-    const bodyHTML = `
-        <div class="form-group">
-            <label>Jumlah Kontribusi</label>
-            <input type="number" id="contributeAmount" placeholder="0" min="0" max="${remaining}" step="1000">
+    openModal('Tambah Kontribusi', `
+        <div class="amount-input-wrap">
+            <span class="amount-input-wrap__symbol">${CURRENCY_SYMBOLS[state.settings.currency] || 'Rp'}</span>
+            <input type="number" class="input amount-input" id="contributeAmount" placeholder="0" min="0" max="${remaining}" step="1000">
         </div>
-        <p style="font-size: 0.85rem; color: var(--text-muted);">Sisa target: ${formatCurrency(remaining)}</p>
-    `;
+        <p class="field__hint">Sisa target ${esc(goal.name)}: ${formatMoney(remaining)}</p>
+    `, [
+        { text: 'Batal' },
+        {
+            text: 'Tambah',
+            class: 'btn-primary',
+            icon: 'fa-check',
+            keepOpen: true,
+            onClick: async () => {
+                const amount = parseFloat(document.getElementById('contributeAmount').value);
+                if (!amount || amount <= 0) { toast('Jumlah harus lebih dari 0', 'error'); return false; }
+                try {
+                    await updateRecord('goals', goalId, { currentAmount: Number(goal.currentAmount) + amount });
+                    closeModal();
+                    toast('Kontribusi ditambahkan');
+                } catch (err) {
+                    toast(err.message, 'error');
+                }
+            }
+        }
+    ]);
+}
 
-    const footerButtons = [
-        { text: 'Batal', class: 'btn-outline', onClick: closeModal },
-        { text: 'Tambah', class: 'btn-primary', onClick: () => {
-            const amount = parseFloat(document.getElementById('contributeAmount').value);
-            if (!amount || amount <= 0) { showToast('Jumlah harus lebih dari 0', 'error'); return; }
-            goal.currentAmount = Math.min(goal.currentAmount + amount, goal.targetAmount);
-            saveState();
-            closeModal();
-            renderPage(state.currentPage);
-            showToast('Kontribusi berhasil ditambahkan');
-        }}
-    ];
+/* ---------- Data transfer ------------------------------------------------ */
 
-    openModal('Tambah Kontribusi', bodyHTML, footerButtons);
+function downloadJSON(data, filename) {
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
 }
 
 function exportData() {
-    const data = {
+    downloadJSON({
         accounts: state.accounts,
         transactions: state.transactions,
         categories: state.categories,
@@ -1227,93 +1845,172 @@ function exportData() {
         goals: state.goals,
         settings: state.settings,
         exportedAt: new Date().toISOString()
+    }, `financeapp-backup-${toISODate(new Date())}.json`);
+    toast('Data berhasil diekspor');
+}
+
+function exportCSV() {
+    const header = 'tanggal,tipe,kategori,akun,keterangan,jumlah\n';
+    const escape = (v) => {
+        const s = v === undefined || v === null ? '' : String(v);
+        return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
     };
 
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const rows = [...state.transactions]
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map(t => {
+            const cat = categoryOf(t.categoryId);
+            const acc = accountOf(t.accountId);
+            return [
+                t.date,
+                t.type === 'income' ? 'Pemasukan' : t.type === 'expense' ? 'Pengeluaran' : 'Transfer',
+                cat ? cat.name : '',
+                acc ? acc.name : '',
+                t.note || '',
+                Number(t.amount)
+            ].map(escape).join(',');
+        })
+        .join('\n');
+
+    const blob = new Blob([header + rows + (rows ? '\n' : '')], { type: 'text/csv;charset=utf-8' });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `financeapp-backup-${formatDateISO(new Date())}.json`;
-    a.click();
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `transaksi-${toISODate(new Date())}.csv`;
+    link.click();
     URL.revokeObjectURL(url);
-    showToast('Data berhasil diexport');
+    toast('CSV berhasil dibuat');
 }
 
 function importData(file) {
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
         try {
             const data = JSON.parse(e.target.result);
-            if (data.accounts) state.accounts = data.accounts;
-            if (data.transactions) state.transactions = data.transactions;
-            if (data.categories) state.categories = data.categories;
-            if (data.budgets) state.budgets = data.budgets;
-            if (data.goals) state.goals = data.goals;
-            if (data.settings) state.settings = { ...DEFAULT_SETTINGS, ...data.settings };
-            saveState();
-            renderPage(state.currentPage);
-            showToast('Data berhasil diimport');
+            if (!data || typeof data !== 'object') throw new Error('Format tidak dikenali');
+
+            await Api.saveAll({
+                accounts: data.accounts || state.accounts,
+                transactions: data.transactions || state.transactions,
+                categories: data.categories || state.categories,
+                budgets: data.budgets || state.budgets,
+                goals: data.goals || state.goals,
+                settings: { ...state.settings, ...(data.settings || {}) }
+            });
+
+            await refreshFromSource();
+            applyTheme(document.documentElement.getAttribute('data-theme'));
+            toast('Data berhasil diimpor');
         } catch (err) {
-            showToast('File tidak valid', 'error');
+            toast('File tidak valid: ' + err.message, 'error');
         }
     };
     reader.readAsText(file);
 }
 
-function clearAllData() {
-    if (!confirm('Hapus SEMUA data? Tindakan ini tidak dapat dibatalkan.')) return;
-    if (!confirm('Apakah Anda yakin? Semua transaksi, akun, anggaran, dan target akan hilang.')) return;
+async function resetData() {
+    if (!confirmAction('Hapus SEMUA data dan kembali ke data demo? Tindakan ini tidak dapat dibatalkan.')) return;
 
-    Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key));
-    state = {
-        accounts: [],
-        transactions: [],
-        categories: [...DEFAULT_CATEGORIES],
-        budgets: [],
-        goals: [],
-        settings: { ...DEFAULT_SETTINGS },
-        currentPage: 'dashboard',
-        charts: {}
-    };
-    saveState();
-    renderPage('dashboard');
-    showToast('Semua data telah dihapus');
-}
-
-function toggleTheme() {
-    const html = document.documentElement;
-    const currentTheme = html.getAttribute('data-theme');
-    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
-    html.setAttribute('data-theme', newTheme);
-    localStorage.setItem(STORAGE_KEYS.theme, newTheme);
-
-    const btn = document.getElementById('themeToggle');
-    if (btn) {
-        btn.innerHTML = newTheme === 'dark'
-            ? '<i class="fas fa-moon"></i><span>Mode Gelap</span>'
-            : '<i class="fas fa-sun"></i><span>Mode Terang</span>';
-    }
-
-    renderPage(state.currentPage);
-}
-
-function initTheme() {
-    const savedTheme = localStorage.getItem(STORAGE_KEYS.theme) || 'dark';
-    document.documentElement.setAttribute('data-theme', savedTheme);
-
-    const btn = document.getElementById('themeToggle');
-    if (btn) {
-        btn.innerHTML = savedTheme === 'dark'
-            ? '<i class="fas fa-moon"></i><span>Mode Gelap</span>'
-            : '<i class="fas fa-sun"></i><span>Mode Terang</span>';
+    try {
+        await Api.resetAll();
+        await loadState();
+        applyTheme(document.documentElement.getAttribute('data-theme'));
+        navigateTo('dashboard');
+        toast('Data direset ke data demo');
+    } catch (err) {
+        toast('Gagal mereset data: ' + err.message, 'error');
     }
 }
 
-function initEventListeners() {
-    document.querySelectorAll('.nav-item').forEach(item => {
-        item.addEventListener('click', (e) => {
+/* ---------- Global search ------------------------------------------------- */
+
+function runSearch(query) {
+    const box = document.getElementById('searchResults');
+    const q = query.trim().toLowerCase();
+
+    if (!q) {
+        box.hidden = true;
+        box.innerHTML = '';
+        return;
+    }
+
+    const results = [];
+
+    state.transactions.forEach(t => {
+        const cat = categoryOf(t.categoryId);
+        const haystack = `${t.note || ''} ${cat ? cat.name : ''} ${formatMoney(t.amount)}`.toLowerCase();
+        if (haystack.includes(q)) {
+            results.push({
+                type: 'transaction',
+                id: t.id,
+                icon: cat ? cat.icon : 'fa-arrow-right-arrow-left',
+                color: cat ? cat.color : PALETTE[8],
+                title: t.note || (cat ? cat.name : 'Transfer'),
+                sub: `${relativeDay(t.date)} · ${formatMoney(t.amount)}`,
+                amount: t.amount
+            });
+        }
+    });
+
+    state.accounts.forEach(a => {
+        if (`${a.name} ${a.type}`.toLowerCase().includes(q)) {
+            results.push({ type: 'account', id: a.id, icon: a.icon || 'fa-wallet', color: a.color, title: a.name, sub: `Saldo ${formatMoney(a.balance)}` });
+        }
+    });
+
+    state.categories.forEach(c => {
+        if (`${c.name}`.toLowerCase().includes(q)) {
+            results.push({ type: 'category', id: c.id, icon: c.icon || 'fa-tag', color: c.color, title: c.name, sub: c.type === 'income' ? 'Kategori pemasukan' : 'Kategori pengeluaran' });
+        }
+    });
+
+    const limited = results.slice(0, 8);
+
+    box.innerHTML = limited.length
+        ? limited.map(item => `
+            <button class="search-results__item" data-search-type="${item.type}" data-search-id="${esc(item.id)}">
+                <span class="icon-dot" style="background:${esc(item.color)};width:28px;height:28px;font-size:11px">
+                    <i class="fas ${iconClass(item.icon)}"></i>
+                </span>
+                <span class="search-results__meta">
+                    <span class="search-results__title">${esc(item.title)}</span>
+                    <span class="search-results__sub">${esc(item.sub)}</span>
+                </span>
+            </button>`).join('')
+        : `<div class="search-results__empty">Tidak ada hasil untuk "${esc(query)}"</div>`;
+
+    box.hidden = false;
+}
+
+function openSearchResult(type, id) {
+    document.getElementById('searchResults').hidden = true;
+    document.getElementById('globalSearch').value = '';
+
+    if (type === 'transaction') {
+        const tx = state.transactions.find(t => t.id === id);
+        if (tx) openTransactionModal(tx);
+        return;
+    }
+    if (type === 'account') {
+        navigateTo('accounts');
+        const acc = state.accounts.find(a => a.id === id);
+        if (acc) setTimeout(() => openAccountModal(acc), 120);
+        return;
+    }
+    if (type === 'category') {
+        navigateTo('categories');
+        const cat = state.categories.find(c => c.id === id);
+        if (cat) setTimeout(() => openCategoryModal(cat), 120);
+    }
+}
+
+/* ---------- Event wiring ------------------------------------------------- */
+
+function bindEvents() {
+    document.querySelectorAll('.nav-link[data-page]').forEach(link => {
+        link.addEventListener('click', (e) => {
             e.preventDefault();
-            navigateTo(item.dataset.page);
+            navigateTo(link.dataset.page);
         });
     });
 
@@ -1324,19 +2021,16 @@ function initEventListeners() {
         });
     });
 
-    document.getElementById('sidebarToggle').addEventListener('click', () => {
-        document.getElementById('sidebar').classList.toggle('collapsed');
-    });
-
-    document.getElementById('menuBtn').addEventListener('click', () => {
-        document.getElementById('sidebar').classList.toggle('open');
-    });
-
+    document.getElementById('menuBtn').addEventListener('click', openSidebar);
+    document.getElementById('sidebarClose').addEventListener('click', closeSidebar);
+    document.getElementById('sidebarBackdrop').addEventListener('click', closeSidebar);
     document.getElementById('themeToggle').addEventListener('click', toggleTheme);
 
     document.getElementById('addTransactionBtn').addEventListener('click', () => openTransactionModal());
+    document.getElementById('fabBtn').addEventListener('click', () => openTransactionModal());
     document.getElementById('addAccountBtn').addEventListener('click', () => openAccountModal());
-    document.getElementById('addBudgetBtn').addEventListener('click', openBudgetModal);
+    document.getElementById('addCategoryBtn').addEventListener('click', () => openCategoryModal());
+    document.getElementById('addBudgetBtn').addEventListener('click', () => openBudgetModal());
     document.getElementById('addGoalBtn').addEventListener('click', () => openGoalModal());
 
     document.getElementById('modalClose').addEventListener('click', closeModal);
@@ -1344,113 +2038,227 @@ function initEventListeners() {
         if (e.target === e.currentTarget) closeModal();
     });
 
-    document.getElementById('filterType').addEventListener('change', applyFilters);
-    document.getElementById('filterAccount').addEventListener('change', applyFilters);
-    document.getElementById('filterCategory').addEventListener('change', applyFilters);
-    document.getElementById('filterDateFrom').addEventListener('change', applyFilters);
-    document.getElementById('filterDateTo').addEventListener('change', applyFilters);
+    ['filterType', 'filterAccount', 'filterCategory', 'filterDateFrom', 'filterDateTo'].forEach(id => {
+        document.getElementById(id).addEventListener('change', applyFilters);
+    });
+    document.getElementById('txSearch').addEventListener('input', applyFilters);
+    document.getElementById('resetFilter').addEventListener('click', resetFilters);
 
-    document.getElementById('resetFilter').addEventListener('click', () => {
-        document.getElementById('filterType').value = '';
-        document.getElementById('filterAccount').value = '';
-        document.getElementById('filterCategory').value = '';
-        document.getElementById('filterDateFrom').value = '';
-        document.getElementById('filterDateTo').value = '';
-        applyFilters();
+    document.getElementById('trendRange').addEventListener('click', (e) => {
+        const btn = e.target.closest('.segmented__item');
+        if (!btn) return;
+        state.ui.trendMonths = Number(btn.dataset.months);
+        document.querySelectorAll('#trendRange .segmented__item').forEach(b => b.classList.toggle('is-active', b === btn));
+        renderTrendChart();
     });
 
-    document.getElementById('globalSearch').addEventListener('input', (e) => {
-        const query = e.target.value.toLowerCase();
-        if (!query) {
-            if (state.currentPage === 'transactions') applyFilters();
-            return;
-        }
+    document.getElementById('calPrev').addEventListener('click', () => shiftCalendarMonth(-1));
+    document.getElementById('calNext').addEventListener('click', () => shiftCalendarMonth(1));
 
-        const filtered = state.transactions.filter(t => {
-            const cat = state.categories.find(c => c.id === t.categoryId);
-            const acc = state.accounts.find(a => a.id === t.accountId);
-            return (t.note && t.note.toLowerCase().includes(query)) ||
-                   (cat && cat.name.toLowerCase().includes(query)) ||
-                   (acc && acc.name.toLowerCase().includes(query));
-        });
-
-        if (state.currentPage === 'transactions') {
-            const tbody = document.getElementById('transactionsTableBody');
-            if (!filtered.length) {
-                tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><i class="fas fa-search"></i><p>Tidak ditemukan</p></div></td></tr>';
-                return;
-            }
-            tbody.innerHTML = filtered.map(t => {
-                const cat = state.categories.find(c => c.id === t.categoryId);
-                const acc = state.accounts.find(a => a.id === t.accountId);
-                const toAcc = state.accounts.find(a => a.id === t.toAccountId);
-                const typeClass = t.type === 'income' ? 'amount-income' : t.type === 'expense' ? 'amount-expense' : 'amount-transfer';
-                const typeLabel = t.type === 'income' ? 'Pemasukan' : t.type === 'expense' ? 'Pengeluaran' : 'Transfer';
-                return `
-                    <tr>
-                        <td>${formatDate(t.date)}</td>
-                        <td>${t.note || '-'}</td>
-                        <td>${cat ? cat.name : typeLabel}</td>
-                        <td>${acc ? acc.name : '-'}${toAcc ? ' → ' + toAcc.name : ''}</td>
-                        <td class="${typeClass}">${formatCurrency(t.amount)}</td>
-                        <td>
-                            <button class="btn-icon" onclick="editTransaction('${t.id}')"><i class="fas fa-edit"></i></button>
-                            <button class="btn-icon danger" onclick="deleteTransaction('${t.id}')"><i class="fas fa-trash"></i></button>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-        }
-    });
-
-    document.getElementById('reportPeriod').addEventListener('change', renderReportChart);
+    document.getElementById('reportPeriod').addEventListener('change', renderReports);
     document.getElementById('reportType').addEventListener('change', renderReportChart);
 
-    document.getElementById('currencySelect').addEventListener('change', (e) => {
-        state.settings.currency = e.target.value;
-        saveState();
-        renderPage(state.currentPage);
-        showToast('Mata uang diubah');
+    const settings = [
+        ['currencySelect', 'currency'],
+        ['dateFormatSelect', 'dateFormat'],
+        ['languageSelect', 'language']
+    ];
+
+    settings.forEach(([id, key]) => {
+        document.getElementById(id).addEventListener('change', async (e) => {
+            state.settings[key] = e.target.value;
+            await persistAll();
+            renderCurrentPage();
+            toast('Preferensi disimpan');
+        });
     });
 
-    document.getElementById('dateFormatSelect').addEventListener('change', (e) => {
-        state.settings.dateFormat = e.target.value;
-        saveState();
-        renderPage(state.currentPage);
-        showToast('Format tanggal diubah');
+    document.getElementById('compactNumbers').addEventListener('change', async (e) => {
+        state.settings.compactNumbers = e.target.checked;
+        await persistAll();
+        renderCurrentPage();
     });
 
-    document.getElementById('languageSelect').addEventListener('change', (e) => {
-        state.settings.language = e.target.value;
-        saveState();
-        showToast('Bahasa diubah');
+    document.getElementById('apiBaseSave').addEventListener('click', () => {
+        const value = document.getElementById('apiBaseInput').value.trim();
+        if (!value) {
+            localStorage.removeItem('financeApp_apiBase');
+            location.reload();
+            return;
+        }
+        Api.setBase(value);
     });
 
     document.getElementById('exportBtn').addEventListener('click', exportData);
-
-    document.getElementById('importBtn').addEventListener('click', () => {
-        document.getElementById('importFile').click();
-    });
-
+    document.getElementById('exportCsvBtn').addEventListener('click', exportCSV);
+    document.getElementById('importBtn').addEventListener('click', () => document.getElementById('importFile').click());
     document.getElementById('importFile').addEventListener('change', (e) => {
         if (e.target.files.length) {
             importData(e.target.files[0]);
             e.target.value = '';
         }
     });
+    document.getElementById('clearDataBtn').addEventListener('click', resetData);
 
-    document.getElementById('clearDataBtn').addEventListener('click', clearAllData);
+    const searchInput = document.getElementById('globalSearch');
+    searchInput.addEventListener('input', (e) => runSearch(e.target.value));
+    searchInput.addEventListener('focus', (e) => runSearch(e.target.value));
+
+    document.getElementById('searchResults').addEventListener('click', (e) => {
+        const item = e.target.closest('.search-results__item');
+        if (!item) return;
+        openSearchResult(item.dataset.searchType, item.dataset.searchId);
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('#searchWrap')) document.getElementById('searchResults').hidden = true;
+    });
 
     document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') closeModal();
+        if (e.key === 'Escape') {
+            if (document.getElementById('modalOverlay').classList.contains('is-open')) closeModal();
+            document.getElementById('searchResults').hidden = true;
+            closeSidebar();
+        }
+
+        if (e.key === '/' && !/input|textarea|select/i.test(document.activeElement.tagName)) {
+            e.preventDefault();
+            searchInput.focus();
+        }
+
+        const modalOpen = document.getElementById('modalOverlay').classList.contains('is-open');
+        if (modalOpen && e.key === 'Enter' && modalSubmitHandler) {
+            e.preventDefault();
+            modalSubmitHandler();
+        }
+    });
+
+    bindDynamicEvents();
+}
+
+function bindDynamicEvents() {
+    document.getElementById('content').addEventListener('click', async (e) => {
+        const target = e.target.closest('[data-action], [data-edit-tx], [data-delete-tx], [data-cal-day], [data-edit-account], [data-delete-account], [data-edit-category], [data-delete-category], [data-edit-budget], [data-delete-budget], [data-edit-goal], [data-delete-goal], [data-contribute-goal]');
+        if (!target) return;
+
+        const d = target.dataset;
+
+        if (d.action === 'addBudget') return openBudgetModal();
+        if (d.action === 'addGoal') return openGoalModal();
+        if (d.action === 'addAccount') return openAccountModal();
+
+        try {
+            if (d.editTx) {
+                const tx = state.transactions.find(t => t.id === d.editTx);
+                if (tx) openTransactionModal(tx);
+            }
+
+            if (d.deleteTx) {
+                if (!confirmAction('Hapus transaksi ini?')) return;
+                await deleteRecord('transactions', d.deleteTx);
+                toast('Transaksi dihapus');
+            }
+
+            if (d.calDay) {
+                state.ui.calendarDate = Number(d.calDay);
+                renderCalendar();
+            }
+
+            if (d.editAccount) {
+                const acc = state.accounts.find(a => a.id === d.editAccount);
+                if (acc) openAccountModal(acc);
+            }
+
+            if (d.deleteAccount) {
+                const acc = state.accounts.find(a => a.id === d.deleteAccount);
+                if (!confirmAction(`Hapus akun "${acc ? acc.name : ''}"? Transaksi terkait tetap tersimpan.`)) return;
+                await deleteRecord('accounts', d.deleteAccount);
+                toast('Akun dihapus');
+            }
+
+            if (d.editCategory) {
+                const cat = state.categories.find(c => c.id === d.editCategory);
+                if (cat) openCategoryModal(cat);
+            }
+
+            if (d.deleteCategory) {
+                const cat = state.categories.find(c => c.id === d.deleteCategory);
+                const used = state.transactions.filter(t => t.categoryId === d.deleteCategory).length;
+                if (!confirmAction(`Hapus kategori "${cat ? cat.name : ''}"?${used ? ` ${used} transaksi akan kehilangan kategori ini.` : ''}`)) return;
+                await deleteRecord('categories', d.deleteCategory);
+                toast('Kategori dihapus');
+            }
+
+            if (d.editBudget) {
+                const budget = state.budgets.find(b => b.id === d.editBudget);
+                if (budget) openBudgetModal(budget);
+            }
+
+            if (d.deleteBudget) {
+                if (!confirmAction('Hapus anggaran ini?')) return;
+                await deleteRecord('budgets', d.deleteBudget);
+                toast('Anggaran dihapus');
+            }
+
+            if (d.editGoal) {
+                const goal = state.goals.find(g => g.id === d.editGoal);
+                if (goal) openGoalModal(goal);
+            }
+
+            if (d.deleteGoal) {
+                const goal = state.goals.find(g => g.id === d.deleteGoal);
+                if (!confirmAction(`Hapus target "${goal ? goal.name : ''}"?`)) return;
+                await deleteRecord('goals', d.deleteGoal);
+                toast('Target dihapus');
+            }
+
+            if (d.contributeGoal) openContributeModal(d.contributeGoal);
+        } catch (err) {
+            toast(err.message || 'Terjadi kesalahan', 'error');
+        }
+    });
+
+    document.getElementById('modalBody').addEventListener('click', (e) => {
+        const typeBtn = e.target.closest('.type-toggle__item');
+        if (typeBtn) {
+            const toggle = typeBtn.closest('.type-toggle');
+            toggle.querySelectorAll('.type-toggle__item').forEach(b => b.classList.toggle('is-active', b === typeBtn));
+            if (toggle.id === 'trxTypeToggle') refreshTrxForm(typeBtn.dataset.type);
+            return;
+        }
+
+        const iconBtn = e.target.closest('.icon-picker__item');
+        if (iconBtn) {
+            const picker = iconBtn.closest('.icon-picker');
+            picker.querySelectorAll('.icon-picker__item').forEach(b => b.classList.toggle('is-active', b === iconBtn));
+        }
     });
 }
 
-function init() {
-    loadState();
+/* ---------- Boot --------------------------------------------------------- */
+
+async function init() {
     initTheme();
-    initEventListeners();
-    navigateTo('dashboard');
+    bindEvents();
+    navigateTo('dashboard', { scroll: false });
+
+    const mode = await Api.init();
+    updateConnectionBadge();
+
+    try {
+        await loadState();
+    } catch (err) {
+        console.error(err);
+        toast('Gagal memuat data: ' + err.message, 'error');
+    }
+
+    if (mode === 'local' && !state.transactions.length) {
+        toast('Backend tidak aktif — memakai data lokal', 'warning');
+    }
+
+    syncLocalCache();
+    state.ready = true;
+    renderCurrentPage();
 }
 
 document.addEventListener('DOMContentLoaded', init);
